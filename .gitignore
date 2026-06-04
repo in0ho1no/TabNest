@@ -427,3 +427,41 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# TabNest local settings
+*.local.json
+settings.local.json
+
+# App runtime settings
+TabNest/settings.json
+**/settings.json
+!docs/examples/settings.json
+!samples/settings.json
+
+# UI test artifacts
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+screenshots/
+ui-test-screenshots/
+
+# Appium / WinAppDriver logs
+appium.log
+winappdriver.log
+
+# Windows packaging outputs
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+
+# Publish outputs
+publish/
+artifacts/
+
+# Temporary files
+*.tmp
+*.temp
