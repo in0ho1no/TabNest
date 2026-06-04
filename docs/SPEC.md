@@ -1197,3 +1197,17 @@ xUnitで単体テストを追加し、dotnet test が成功する状態にして
 - タブ並び替え
 - グループ間タブ移動
 ```
+
+## 開発補助
+
+本プロジェクトでは、AIによる実装支援を前提とする。
+
+推奨する開発補助環境は以下とする。
+
+- GitHub Copilot
+- Claude Code
+- Codex CLI
+- Windows Development Skills
+
+Windows Development Skills は、WinUI 3 / Windows App SDK に関する実装支援の精度を高める目的で利用する。  
+ただし、本プロジェクトのビルド、テスト、実行は Windows Development Skills に依存しない。
