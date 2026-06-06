@@ -45,6 +45,49 @@
 - 検索で`rg`を使う場合は最初に利用可否を確認し、利用不可なら以降は`rg`を使わず、組み込み検索または標準コマンドで検索すること。
 - 変更後は影響範囲に応じて必要最小限の検証を行う
 
+## TabNest プロジェクト構成（重要）
+
+### ソリューションファイル
+- `TabNest.slnx`（.NET 10 新形式）を使用する。`.sln` は存在しない。
+- ビルド・テストは必ずソリューション単位で実行する。
+
+```powershell
+dotnet build TabNest.slnx               # Debug（デフォルト）
+dotnet build TabNest.slnx --configuration Release
+dotnet test  TabNest.slnx               # 全テストプロジェクトを対象
+```
+
+### プロジェクト構成とテスト方針
+
+| プロジェクト | TFM | 役割 |
+|---|---|---|
+| `src/TabNest.App` | net10.0-windows10.0.26100.0 | WinUI 3 エントリポイント・View |
+| `src/TabNest.ViewModels` | net10.0 | ViewModel 層（WinUI 非依存） |
+| `src/TabNest.Core` | net10.0 | Model・Service・Interface |
+| `tests/TabNest.ViewModels.Tests` | net10.0 | ViewModel 単体テスト |
+| `tests/TabNest.Core.Tests` | net10.0 | Core 単体テスト |
+
+**テストプロジェクトから `TabNest.App` を直接参照してはならない。**
+WinRT auto-initializer（`Microsoft.WindowsAppSDK.Foundation`）がアセンブリロード時に発火し、
+WinUI ランタイムコンテキスト外では必ず失敗する。
+ViewModel のテストは `TabNest.ViewModels.Tests → TabNest.ViewModels` の参照で行う。
+
+### 名前空間ルール
+- `TabNest.App.csproj` の `<RootNamespace>` は `TabNest.App`（アンダースコアなし）
+- XAML の `x:Class` / `xmlns:local` も `TabNest.App` 系で統一
+
+### Release ビルドの注意
+- `<PublishTrimmed>` / `<PublishReadyToRun>` は `TabNest.App.csproj` から除去済み。
+  `dotnet build --configuration Release` では trimming は実行されない。
+  配布時に `dotnet publish` でオプション指定する。
+
+### BuildAndRun.ps1 の制限
+- `BuildAndRun.ps1` は Visual Studio の MSBuild（.NET 9 SDK 同梱）を優先するため、
+  `.NET 10` プロジェクトのビルドに失敗する場合がある。
+  その場合は `dotnet run --project src/TabNest.App/TabNest.App.csproj -p:Platform=x64` を使う。
+
+---
+
 ## WinUI 3 開発ルール
 
 - WinUI 3 と UWP・WPF などの旧スタックを混同しないこと。名前空間・API・実行モデルが異なるため、常に WinUI 3 / Windows App SDK のコンテキストで回答・実装すること。
