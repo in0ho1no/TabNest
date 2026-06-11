@@ -42,6 +42,27 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void 初期起動状態_グループ作業1とユーザープロファイルのタブ1個が作成される()
+    {
+        var vm = CreateViewModel();
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        var group = Assert.Single(vm.Groups);
+        Assert.Equal("作業1", group.Name);
+        var tab = Assert.Single(group.Tabs);
+        Assert.Equal(userProfile, tab.Path);
+        Assert.Equal(MainViewModel.GetTabTitle(userProfile), tab.Title);
+        Assert.True(tab.IsActive);
+    }
+
+    [Fact]
+    public void GetTabTitle_フォルダ名を返しドライブルートはそのまま()
+    {
+        Assert.Equal("src", MainViewModel.GetTabTitle(@"C:\work\src"));
+        Assert.Equal(@"C:\", MainViewModel.GetTabTitle(@"C:\"));
+    }
+
+    [Fact]
     public void Folder_初期状態では空()
     {
         var vm = CreateViewModel();
