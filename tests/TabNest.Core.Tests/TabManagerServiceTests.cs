@@ -1,3 +1,4 @@
+using TabNest.Core.Models;
 using TabNest.Core.Services;
 
 namespace TabNest.Core.Tests;
@@ -6,12 +7,26 @@ public class TabManagerServiceTests
 {
     private const string UserProfile = @"C:\Users\test";
 
+    private static TabGroup AddGroup(TabManagerService service, string name)
+    {
+        var result = service.AddGroup(name);
+        Assert.True(result.IsSuccess);
+        return result.Value!;
+    }
+
+    private static FolderTab AddTab(TabManagerService service, string groupId, string path, string title)
+    {
+        var result = service.AddTab(groupId, path, title);
+        Assert.True(result.IsSuccess);
+        return result.Value!;
+    }
+
     [Fact]
     public void AddGroup_グループが追加され最初のグループがアクティブになる()
     {
         var service = new TabManagerService();
 
-        var group = service.AddGroup("作業1");
+        var group = AddGroup(service, "作業1");
 
         Assert.Single(service.Groups);
         Assert.Equal("作業1", group.Name);
@@ -23,9 +38,9 @@ public class TabManagerServiceTests
     public void AddGroup_2つ目のグループ追加ではアクティブグループが変わらない()
     {
         var service = new TabManagerService();
-        var first = service.AddGroup("作業1");
+        var first = AddGroup(service, "作業1");
 
-        service.AddGroup("作業2");
+        AddGroup(service, "作業2");
 
         Assert.Equal(2, service.Groups.Count);
         Assert.Equal(first.Id, service.ActiveGroupId);
@@ -35,14 +50,12 @@ public class TabManagerServiceTests
     public void AddTab_グループ末尾に追加されアクティブタブになる()
     {
         var service = new TabManagerService();
-        var group = service.AddGroup("作業1");
-        var first = service.AddTab(group.Id, UserProfile, "test");
+        var group = AddGroup(service, "作業1");
+        var first = AddTab(service, group.Id, UserProfile, "test");
 
-        var second = service.AddTab(group.Id, @"C:\work", "work");
+        var second = AddTab(service, group.Id, @"C:\work", "work");
 
-        Assert.NotNull(first);
-        Assert.NotNull(second);
-        Assert.Equal([first!.Id, second!.Id], group.Tabs.Select(t => t.Id).ToArray());
+        Assert.Equal([first.Id, second.Id], group.Tabs.Select(t => t.Id).ToArray());
         Assert.Equal(second.Id, service.ActiveTabId);
         Assert.Equal(second.Id, group.SelectedTabId);
         Assert.Equal(@"C:\work", second.Path);
@@ -50,14 +63,16 @@ public class TabManagerServiceTests
     }
 
     [Fact]
-    public void AddTab_存在しないグループにはnullを返す()
+    public void AddTab_存在しないグループはGroupNotFound()
     {
         var service = new TabManagerService();
-        service.AddGroup("作業1");
+        AddGroup(service, "作業1");
 
-        var tab = service.AddTab("no-such-group", UserProfile, "test");
+        var result = service.AddTab("no-such-group", UserProfile, "test");
 
-        Assert.Null(tab);
+        Assert.False(result.IsSuccess);
+        Assert.Equal(TabOperationError.GroupNotFound, result.Error);
+        Assert.NotNull(result.ErrorMessage);
         Assert.Empty(service.Groups[0].Tabs);
     }
 
@@ -65,8 +80,8 @@ public class TabManagerServiceTests
     public void CloseTab_タブが削除される()
     {
         var service = new TabManagerService();
-        var group = service.AddGroup("作業1");
-        var tab = service.AddTab(group.Id, UserProfile, "test")!;
+        var group = AddGroup(service, "作業1");
+        var tab = AddTab(service, group.Id, UserProfile, "test");
 
         var ok = service.CloseTab(tab.Id);
 
@@ -80,10 +95,10 @@ public class TabManagerServiceTests
     public void CloseTab_アクティブタブを閉じると次のタブがアクティブになる()
     {
         var service = new TabManagerService();
-        var group = service.AddGroup("作業1");
-        var a = service.AddTab(group.Id, @"C:\a", "a")!;
-        var b = service.AddTab(group.Id, @"C:\b", "b")!;
-        var c = service.AddTab(group.Id, @"C:\c", "c")!;
+        var group = AddGroup(service, "作業1");
+        var a = AddTab(service, group.Id, @"C:\a", "a");
+        var b = AddTab(service, group.Id, @"C:\b", "b");
+        var c = AddTab(service, group.Id, @"C:\c", "c");
         service.SetActiveTab(b.Id);
 
         service.CloseTab(b.Id);
@@ -97,9 +112,9 @@ public class TabManagerServiceTests
     public void CloseTab_末尾のアクティブタブを閉じると前のタブがアクティブになる()
     {
         var service = new TabManagerService();
-        var group = service.AddGroup("作業1");
-        var a = service.AddTab(group.Id, @"C:\a", "a")!;
-        var b = service.AddTab(group.Id, @"C:\b", "b")!;
+        var group = AddGroup(service, "作業1");
+        var a = AddTab(service, group.Id, @"C:\a", "a");
+        var b = AddTab(service, group.Id, @"C:\b", "b");
 
         service.CloseTab(b.Id);
 
@@ -110,9 +125,9 @@ public class TabManagerServiceTests
     public void CloseTab_非アクティブタブを閉じてもアクティブタブは変わらない()
     {
         var service = new TabManagerService();
-        var group = service.AddGroup("作業1");
-        var a = service.AddTab(group.Id, @"C:\a", "a")!;
-        var b = service.AddTab(group.Id, @"C:\b", "b")!;
+        var group = AddGroup(service, "作業1");
+        var a = AddTab(service, group.Id, @"C:\a", "a");
+        var b = AddTab(service, group.Id, @"C:\b", "b");
         service.SetActiveTab(b.Id);
 
         service.CloseTab(a.Id);
@@ -125,7 +140,7 @@ public class TabManagerServiceTests
     public void CloseTab_存在しないタブはfalse()
     {
         var service = new TabManagerService();
-        service.AddGroup("作業1");
+        AddGroup(service, "作業1");
 
         Assert.False(service.CloseTab("no-such-tab"));
     }
@@ -134,10 +149,10 @@ public class TabManagerServiceTests
     public void SetActiveTab_タブと所属グループがアクティブになる()
     {
         var service = new TabManagerService();
-        var group1 = service.AddGroup("作業1");
-        var group2 = service.AddGroup("作業2");
-        var tab1 = service.AddTab(group1.Id, @"C:\a", "a")!;
-        var tab2 = service.AddTab(group2.Id, @"C:\b", "b")!;
+        var group1 = AddGroup(service, "作業1");
+        var group2 = AddGroup(service, "作業2");
+        var tab1 = AddTab(service, group1.Id, @"C:\a", "a");
+        var tab2 = AddTab(service, group2.Id, @"C:\b", "b");
         service.SetActiveTab(tab1.Id);
 
         var ok = service.SetActiveTab(tab2.Id);
@@ -154,8 +169,8 @@ public class TabManagerServiceTests
     public void SetActiveTab_存在しないタブはfalseで状態を変更しない()
     {
         var service = new TabManagerService();
-        var group = service.AddGroup("作業1");
-        var tab = service.AddTab(group.Id, @"C:\a", "a")!;
+        var group = AddGroup(service, "作業1");
+        var tab = AddTab(service, group.Id, @"C:\a", "a");
 
         var ok = service.SetActiveTab("no-such-tab");
 
@@ -168,8 +183,8 @@ public class TabManagerServiceTests
     public void ActiveTabとActiveGroupが現在の状態を返す()
     {
         var service = new TabManagerService();
-        var group = service.AddGroup("作業1");
-        var tab = service.AddTab(group.Id, @"C:\a", "a")!;
+        var group = AddGroup(service, "作業1");
+        var tab = AddTab(service, group.Id, @"C:\a", "a");
 
         Assert.Same(group, service.ActiveGroup);
         Assert.Same(tab, service.ActiveTab);
