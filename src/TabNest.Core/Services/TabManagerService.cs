@@ -17,10 +17,17 @@ public sealed class TabManagerService
     /// <summary>タブグループ数の下限(0段になる操作は拒否する)。</summary>
     public const int MinGroups = 1;
 
+    /// <summary>閉じたタブ履歴の最大件数(超過時は古いものから破棄)。</summary>
+    public const int MaxClosedTabs = 20;
+
     private readonly List<TabGroup> _groups = new();
+    private readonly List<ClosedTab> _closedTabs = new();
 
     /// <summary>全タブグループ(表示順)。</summary>
     public IReadOnlyList<TabGroup> Groups => _groups;
+
+    /// <summary>閉じたタブ履歴(古い順。末尾が最後に閉じたタブ)。</summary>
+    public IReadOnlyList<ClosedTab> ClosedTabs => _closedTabs;
 
     /// <summary>アクティブなグループの Id。グループが無い場合は null。</summary>
     public string? ActiveGroupId { get; private set; }
@@ -142,7 +149,21 @@ public sealed class TabManagerService
         }
 
         var index = group.Tabs.FindIndex(t => t.Id == tabId);
+        var closing = group.Tabs[index];
         group.Tabs.RemoveAt(index);
+
+        _closedTabs.Add(new ClosedTab
+        {
+            Path = closing.Path,
+            Title = closing.Title,
+            GroupId = group.Id,
+            TabIndex = index,
+            ClosedAt = DateTime.Now,
+        });
+        while (_closedTabs.Count > MaxClosedTabs)
+        {
+            _closedTabs.RemoveAt(0);
+        }
 
         if (group.SelectedTabId == tabId)
         {
@@ -183,6 +204,63 @@ public sealed class TabManagerService
         ActiveTabId = tabId;
         group.SelectedTabId = tabId;
         return true;
+    }
+
+    /// <summary>
+    /// 最後に閉じたタブを復元する(SPEC「閉じたタブの復元ルール」準拠)。
+    /// 復元先は元のグループを優先し、消滅・タブ上限到達時はアクティブグループの末尾とする。
+    /// 元のグループへは TabIndex が範囲内なら同位置へ挿入し、範囲外なら末尾に追加する。
+    /// 復元成功時のみ履歴から削除し、復元したタブをアクティブにする。
+    /// </summary>
+    public TabOperationResult<FolderTab> RestoreClosedTab()
+    {
+        if (_closedTabs.Count == 0)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.NoClosedTab,
+                "復元できるタブがありません。");
+        }
+
+        var closed = _closedTabs[^1];
+
+        // 復元先の決定: 元グループ優先、消滅・上限時はアクティブグループ
+        var originalGroup = FindGroup(closed.GroupId);
+        var targetGroup = originalGroup is not null && originalGroup.Tabs.Count < MaxTabsPerGroup
+            ? originalGroup
+            : ActiveGroup;
+
+        if (targetGroup is null)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.GroupNotFound,
+                "復元先のグループがありません。");
+        }
+
+        if (targetGroup.Tabs.Count >= MaxTabsPerGroup)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabLimitReached,
+                $"復元先グループのタブが上限({MaxTabsPerGroup})に達しています。");
+        }
+
+        // 挿入位置の決定: 元グループに戻す場合のみ TabIndex を考慮、それ以外は末尾
+        var insertIndex = ReferenceEquals(targetGroup, originalGroup)
+            && closed.TabIndex >= 0
+            && closed.TabIndex <= targetGroup.Tabs.Count
+                ? closed.TabIndex
+                : targetGroup.Tabs.Count;
+
+        var tab = new FolderTab
+        {
+            Id = Guid.NewGuid().ToString(),
+            Path = closed.Path,
+            Title = closed.Title,
+            CreatedAt = DateTime.Now,
+        };
+        targetGroup.Tabs.Insert(insertIndex, tab);
+        _closedTabs.Remove(closed);
+        SetActiveTab(tab.Id);
+        return TabOperationResult<FolderTab>.Success(tab);
     }
 
     private TabGroup? FindGroup(string? groupId)

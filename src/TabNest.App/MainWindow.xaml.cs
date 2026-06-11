@@ -29,4 +29,13 @@ public sealed partial class MainWindow : Window
         ViewModel.LoadInitialFolder();
         RootFrame.Navigate(typeof(MainPage), ViewModel);
     }
+
+    private void RestoreClosedTabAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // グループ名編集中は VM 側で no-op になる(編集状態を維持)
+        ViewModel.RestoreClosedTab();
+        args.Handled = true;
+    }
 }

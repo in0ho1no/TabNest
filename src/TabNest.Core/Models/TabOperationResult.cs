@@ -19,6 +19,9 @@ public enum TabOperationError
 
     /// <summary>最後の1グループは削除できない(下限1)。</summary>
     LastGroupProtected,
+
+    /// <summary>復元できる閉じたタブの履歴がない。</summary>
+    NoClosedTab,
 }
 
 /// <summary>
