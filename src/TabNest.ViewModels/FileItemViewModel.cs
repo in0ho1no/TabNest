@@ -1,4 +1,4 @@
-﻿using TabNest.Core.Models;
+using TabNest.Core.Models;
 
 namespace TabNest.ViewModels;
 
