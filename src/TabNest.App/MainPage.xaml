@@ -21,11 +21,29 @@
         <Grid Grid.Row="0" Margin="0,0,0,8" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Button
-                x:Name="UpButton"
+                x:Name="BackButton"
                 Grid.Column="0"
+                AutomationProperties.AutomationId="BackButton"
+                Command="{x:Bind ViewModel.Folder.BackCommand, Mode=OneWay}"
+                Content="&#xE72B;"
+                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                ToolTipService.ToolTip="戻る" />
+            <Button
+                x:Name="ForwardButton"
+                Grid.Column="1"
+                AutomationProperties.AutomationId="ForwardButton"
+                Command="{x:Bind ViewModel.Folder.ForwardCommand, Mode=OneWay}"
+                Content="&#xE72A;"
+                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                ToolTipService.ToolTip="進む" />
+            <Button
+                x:Name="UpButton"
+                Grid.Column="2"
                 AutomationProperties.AutomationId="UpButton"
                 Command="{x:Bind ViewModel.Folder.NavigateUpCommand, Mode=OneWay}"
                 Content="&#xE74A;"
@@ -33,7 +51,7 @@
                 ToolTipService.ToolTip="上の階層へ" />
             <TextBox
                 x:Name="PathTextBox"
-                Grid.Column="1"
+                Grid.Column="3"
                 AutomationProperties.AutomationId="PathTextBox"
                 KeyDown="PathTextBox_KeyDown"
                 Text="{x:Bind ViewModel.Folder.AddressBarText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

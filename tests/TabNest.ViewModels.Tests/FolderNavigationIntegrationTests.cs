@@ -74,6 +74,26 @@ public sealed class FolderNavigationIntegrationTests : IDisposable
     }
 
     [Fact]
+    public void ABCと実フォルダを移動後_戻る進むが機能する()
+    {
+        var a = _tempRoot;
+        var b = Path.Combine(_tempRoot, "child");
+        var c = Path.Combine(_tempRoot, "child", "grandchild");
+        _vm.LoadFolder(a);
+        _vm.LoadFolder(b);
+        _vm.LoadFolder(c);
+
+        Assert.True(_vm.GoBack());
+        Assert.Equal(b, _vm.CurrentPath);
+        Assert.True(_vm.GoBack());
+        Assert.Equal(a, _vm.CurrentPath);
+        Assert.False(_vm.CanGoBack);
+        Assert.True(_vm.GoForward());
+        Assert.Equal(b, _vm.CurrentPath);
+        Assert.Contains(_vm.Items, i => i.Name == "note.txt");
+    }
+
+    [Fact]
     public void 不正なパス入力後も正常に移動を継続できる()
     {
         _vm.LoadFolder(_tempRoot);

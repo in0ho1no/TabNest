@@ -27,6 +27,8 @@ public sealed class FolderViewModel : ViewModelBase
         });
         NavigateUpCommand = new RelayCommand(_ => NavigateUp(), _ => CanNavigateUp);
         NavigateToAddressCommand = new RelayCommand(_ => NavigateToAddress());
+        BackCommand = new RelayCommand(_ => GoBack(), _ => CanGoBack);
+        ForwardCommand = new RelayCommand(_ => GoForward(), _ => CanGoForward);
         OpenItemCommand = new RelayCommand(p =>
         {
             if (p is FileItemViewModel item)
@@ -71,6 +73,15 @@ public sealed class FolderViewModel : ViewModelBase
     public bool CanNavigateUp
         => !string.IsNullOrEmpty(CurrentPath) && Path.GetDirectoryName(CurrentPath) is not null;
 
+    /// <summary>戻る・進む履歴。Task 3-7 でタブごとに所有者を移す。</summary>
+    public NavigationHistory History { get; } = new();
+
+    /// <summary>戻る操作が可能か。</summary>
+    public bool CanGoBack => History.CanGoBack;
+
+    /// <summary>進む操作が可能か。</summary>
+    public bool CanGoForward => History.CanGoForward;
+
     /// <summary>指定パスのフォルダを読み込む(パラメータ: string)。</summary>
     public RelayCommand LoadFolderCommand { get; }
 
@@ -83,11 +94,77 @@ public sealed class FolderViewModel : ViewModelBase
     /// <summary>一覧の項目を開く(フォルダ: 移動、ファイル: 既定アプリ。パラメータ: FileItemViewModel)。</summary>
     public RelayCommand OpenItemCommand { get; }
 
+    /// <summary>戻る(直前のフォルダへ移動する)。</summary>
+    public RelayCommand BackCommand { get; }
+
+    /// <summary>進む(戻る前のフォルダへ移動する)。</summary>
+    public RelayCommand ForwardCommand { get; }
+
     /// <summary>
-    /// 指定フォルダを読み込み、成功時に CurrentPath・AddressBarText・Items を更新する。
-    /// 失敗時は状態を変更せず ErrorMessage のみ設定する。
+    /// 指定フォルダへ移動する。成功時は移動元を履歴(BackStack)に積み、ForwardStack をクリアする。
+    /// 失敗時は状態・履歴を変更せず ErrorMessage のみ設定する。
     /// </summary>
     public bool LoadFolder(string path)
+    {
+        path = NormalizePath(path);
+        var previousPath = CurrentPath;
+        if (!LoadFolderCore(path))
+        {
+            return false;
+        }
+
+        if (previousPath.Length > 0 && !PathsEqual(previousPath, CurrentPath))
+        {
+            History.RecordNavigation(previousPath);
+        }
+
+        RaiseHistoryStateChanged();
+        return true;
+    }
+
+    /// <summary>戻る。読み込み失敗時は履歴・状態を変更しない。</summary>
+    public bool GoBack()
+    {
+        if (History.PeekBack() is not string target)
+        {
+            return false;
+        }
+
+        var previousPath = CurrentPath;
+        if (!LoadFolderCore(target))
+        {
+            return false;
+        }
+
+        History.CommitBack(previousPath);
+        RaiseHistoryStateChanged();
+        return true;
+    }
+
+    /// <summary>進む。読み込み失敗時は履歴・状態を変更しない。</summary>
+    public bool GoForward()
+    {
+        if (History.PeekForward() is not string target)
+        {
+            return false;
+        }
+
+        var previousPath = CurrentPath;
+        if (!LoadFolderCore(target))
+        {
+            return false;
+        }
+
+        History.CommitForward(previousPath);
+        RaiseHistoryStateChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// フォルダを読み込み、成功時に CurrentPath・AddressBarText・Items を更新する(履歴は変更しない)。
+    /// 失敗時は状態を変更せず ErrorMessage のみ設定する。
+    /// </summary>
+    private bool LoadFolderCore(string path)
     {
         var result = _fileSystemService.ListFolder(path);
         if (!result.IsSuccess)
@@ -111,6 +188,21 @@ public sealed class FolderViewModel : ViewModelBase
         AddressBarText = path;
         ErrorMessage = null;
         return true;
+    }
+
+    /// <summary>末尾のディレクトリ区切り文字を除去する(ドライブルート "C:\" は維持される)。</summary>
+    private static string NormalizePath(string path)
+        => Path.TrimEndingDirectorySeparator(path.Trim());
+
+    private static bool PathsEqual(string a, string b)
+        => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+    private void RaiseHistoryStateChanged()
+    {
+        OnPropertyChanged(nameof(CanGoBack));
+        OnPropertyChanged(nameof(CanGoForward));
+        BackCommand.RaiseCanExecuteChanged();
+        ForwardCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>上の階層へ移動する。ドライブルートでは何もしない。</summary>
