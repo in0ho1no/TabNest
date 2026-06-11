@@ -79,6 +79,7 @@ public class TabSelectionTests
     {
         var (vm, stub) = Create();
         stub.Setup(@"C:\ok", FolderListingResult.Success([]));
+        stub.Setup(@"C:\broken", FolderListingResult.Failure("フォルダが見つかりません: C:\\broken"));
         var groupId = vm.Groups[0].Id;
         var okTab = vm.AddTab(groupId, @"C:\ok")!;
         var brokenTab = vm.AddTab(groupId, @"C:\broken")!;
