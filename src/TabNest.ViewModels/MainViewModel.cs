@@ -39,6 +39,46 @@ public sealed class MainViewModel : ViewModelBase
         => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     /// <summary>
+    /// タブを選択してアクティブにし、そのタブのフォルダ内容を表示する。
+    /// フォルダの読み込みに失敗してもタブ選択は維持される(エラーは Folder.ErrorMessage に表示)。
+    /// </summary>
+    public bool SelectTab(FolderTabViewModel tab)
+    {
+        if (!_tabManager.SetActiveTab(tab.Id))
+        {
+            return false;
+        }
+
+        ApplyActiveStates();
+        Folder.LoadFolder(tab.Path);
+        return true;
+    }
+
+    /// <summary>
+    /// 指定グループの末尾に新規タブを追加する(追加されたタブはアクティブになる)。
+    /// UI(ボタン・Ctrl+T)への接続は Task 3-10 で行う。
+    /// </summary>
+    internal FolderTabViewModel? AddTab(string groupId, string path)
+    {
+        var result = _tabManager.AddTab(groupId, path, GetTabTitle(path));
+        if (!result.IsSuccess)
+        {
+            return null;
+        }
+
+        var groupVm = Groups.FirstOrDefault(g => g.Id == groupId);
+        if (groupVm is null)
+        {
+            return null;
+        }
+
+        var tabVm = new FolderTabViewModel(result.Value!);
+        groupVm.Tabs.Add(tabVm);
+        ApplyActiveStates();
+        return tabVm;
+    }
+
+    /// <summary>
     /// SPEC「初期起動状態」: グループ「作業1」とタブ1個(%UserProfile%)を作成する。
     /// (Step 4 の永続化実装前は常にこの初期状態で起動する)
     /// </summary>
@@ -52,13 +92,20 @@ public sealed class MainViewModel : ViewModelBase
 
         var group = groupResult.Value!;
         _tabManager.AddTab(group.Id, UserProfilePath, GetTabTitle(UserProfilePath));
-        var groupVm = new TabGroupViewModel(group);
-        if (groupVm.Tabs.Count > 0)
-        {
-            groupVm.Tabs[0].IsActive = true;
-        }
+        Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab)));
+        ApplyActiveStates();
+    }
 
-        Groups.Add(groupVm);
+    /// <summary>
+    /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。
+    /// </summary>
+    private void ApplyActiveStates()
+    {
+        var activeId = _tabManager.ActiveTabId;
+        foreach (var tab in Groups.SelectMany(g => g.Tabs))
+        {
+            tab.IsActive = tab.Id == activeId;
+        }
     }
 
     /// <summary>
