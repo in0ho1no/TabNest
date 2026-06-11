@@ -63,11 +63,13 @@
                             Padding="10,4"
                             VerticalAlignment="Center"
                             AutomationProperties.AutomationId="FolderTabItem"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            Background="{x:Bind local:TabGroupRow.TabBackground(IsActive), Mode=OneWay}"
                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                             BorderThickness="1"
-                            CornerRadius="4">
+                            CornerRadius="4"
+                            Tapped="TabItem_Tapped">
                             <TextBlock
+                                Foreground="{x:Bind local:TabGroupRow.TabForeground(IsActive), Mode=OneWay}"
                                 Text="{x:Bind Title, Mode=OneWay}"
                                 TextTrimming="CharacterEllipsis" />
                         </Border>

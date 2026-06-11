@@ -9,13 +9,15 @@ namespace TabNest.ViewModels;
 public sealed class TabGroupViewModel : ViewModelBase
 {
     private readonly TabGroup _model;
+    private readonly Action<FolderTabViewModel>? _selectTab;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
 
-    public TabGroupViewModel(TabGroup model)
+    public TabGroupViewModel(TabGroup model, Action<FolderTabViewModel>? selectTab = null)
     {
         _model = model;
+        _selectTab = selectTab;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -23,6 +25,9 @@ public sealed class TabGroupViewModel : ViewModelBase
         CommitRenameCommand = new RelayCommand(_ => CommitRename());
         CancelRenameCommand = new RelayCommand(_ => CancelRename());
     }
+
+    /// <summary>タブを左クリックで選択する(親 ViewModel に委譲)。</summary>
+    public void SelectTab(FolderTabViewModel tab) => _selectTab?.Invoke(tab);
 
     public string Id => _model.Id;
 

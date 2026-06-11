@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using TabNest.ViewModels;
 using Windows.System;
 
@@ -26,6 +27,16 @@ public sealed partial class TabGroupRow : UserControl
     /// <summary>x:Bind 用: false なら Visible。</summary>
     public static Visibility VisibleWhenNot(bool value)
         => value ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>x:Bind 用: アクティブタブはアクセント色、それ以外はカード背景色。</summary>
+    public static Brush TabBackground(bool isActive)
+        => (Brush)Application.Current.Resources[
+            isActive ? "AccentFillColorDefaultBrush" : "CardBackgroundFillColorDefaultBrush"];
+
+    /// <summary>x:Bind 用: アクティブタブはアクセント上の文字色。</summary>
+    public static Brush TabForeground(bool isActive)
+        => (Brush)Application.Current.Resources[
+            isActive ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush"];
 
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
@@ -70,5 +81,14 @@ public sealed partial class TabGroupRow : UserControl
     private void GroupNameEditBox_LostFocus(object sender, RoutedEventArgs e)
     {
         ViewModel?.CommitRename();
+    }
+
+    private void TabItem_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FolderTabViewModel tab })
+        {
+            ViewModel?.SelectTab(tab);
+            e.Handled = true;
+        }
     }
 }
