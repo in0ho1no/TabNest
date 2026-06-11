@@ -27,6 +27,12 @@ public sealed class FileItemViewModel
     /// <summary>サイズ(バイト)。フォルダは null(サイズ列は空欄表示)。</summary>
     public long? SizeInBytes { get; }
 
+    /// <summary>
+    /// アイコンのグリフ(Segoe Fluent Icons)。
+    /// フォルダ: U+E8B7(Folder)、ファイル: U+E7C3(Page)。
+    /// </summary>
+    public string IconGlyph => IsDirectory ? "" : "";
+
     /// <summary>種別の表示文字列。フォルダは「フォルダ」、ファイルは拡張子ベース。</summary>
     public string TypeText
     {
