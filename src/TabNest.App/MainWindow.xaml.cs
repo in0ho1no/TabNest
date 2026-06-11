@@ -11,7 +11,7 @@ namespace TabNest.App;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    public MainViewModel ViewModel { get; } = new(new FileSystemService());
+    public MainViewModel ViewModel { get; } = new(new FileSystemService(), new ShellFileLauncher());
 
     public MainWindow()
     {
