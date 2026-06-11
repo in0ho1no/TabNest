@@ -1,7 +1,5 @@
 ﻿using Microsoft.UI.Xaml;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using TabNest.ViewModels;
 
 namespace TabNest.App;
 
@@ -12,9 +10,14 @@ namespace TabNest.App;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
+    public MainViewModel ViewModel { get; } = new();
+
     public MainWindow()
     {
         InitializeComponent();
+
+        Title = ViewModel.Title;
+        AppTitleBar.Title = ViewModel.Title;
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
