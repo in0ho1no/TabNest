@@ -85,7 +85,12 @@ public sealed class TabManagerService
         {
             var fallback = _groups[0];
             ActiveGroupId = fallback.Id;
-            ActiveTabId = fallback.SelectedTabId;
+            ActiveTabId = null;
+            if (fallback.SelectedTabId is string selectedTabId)
+            {
+                // SetActiveTab 経由でタブの実在を検証して整合を保つ
+                SetActiveTab(selectedTabId);
+            }
         }
 
         return TabOperationResult<TabGroup>.Success(group);
