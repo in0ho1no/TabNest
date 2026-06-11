@@ -1,23 +1,10 @@
-using TabNest.Core.Interfaces;
 using TabNest.Core.Models;
+using TabNest.ViewModels.Tests.TestDoubles;
 
 namespace TabNest.ViewModels.Tests;
 
 public class FolderViewModelTests
 {
-    /// <summary>パスごとに固定の結果を返す IFileSystemService スタブ。</summary>
-    private sealed class StubFileSystemService : IFileSystemService
-    {
-        private readonly Dictionary<string, FolderListingResult> _results = new();
-
-        public void Setup(string path, FolderListingResult result) => _results[path] = result;
-
-        public FolderListingResult ListFolder(string path)
-            => _results.TryGetValue(path, out var result)
-                ? result
-                : FolderListingResult.Failure($"フォルダが見つかりません: {path}");
-    }
-
     private static FileSystemEntry Entry(string name, bool isDirectory, long? size = null) => new()
     {
         Name = name,

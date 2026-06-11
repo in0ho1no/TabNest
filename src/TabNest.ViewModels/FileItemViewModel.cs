@@ -26,4 +26,37 @@ public sealed class FileItemViewModel
 
     /// <summary>サイズ(バイト)。フォルダは null(サイズ列は空欄表示)。</summary>
     public long? SizeInBytes { get; }
+
+    /// <summary>種別の表示文字列。フォルダは「フォルダ」、ファイルは拡張子ベース。</summary>
+    public string TypeText
+    {
+        get
+        {
+            if (IsDirectory)
+            {
+                return "フォルダ";
+            }
+
+            var extension = Path.GetExtension(Name).TrimStart('.');
+            return extension.Length == 0 ? "ファイル" : $"{extension.ToUpperInvariant()} ファイル";
+        }
+    }
+
+    /// <summary>更新日時の表示文字列(yyyy/MM/dd HH:mm)。</summary>
+    public string LastModifiedText => LastModifiedAt.ToString("yyyy/MM/dd HH:mm");
+
+    /// <summary>サイズの表示文字列。ファイルは KB 単位(切り上げ)、フォルダは空欄。</summary>
+    public string SizeText
+    {
+        get
+        {
+            if (SizeInBytes is not long size)
+            {
+                return "";
+            }
+
+            var kiloBytes = (size + 1023) / 1024;
+            return $"{kiloBytes:N0} KB";
+        }
+    }
 }
