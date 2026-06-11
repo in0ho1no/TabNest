@@ -69,8 +69,16 @@ public sealed class FolderTreeViewModel : ViewModelBase
             {
                 foreach (var segment in relative.Split('\\'))
                 {
-                    node.EnsureChildrenLoaded();
-                    node.IsExpanded = true; // パス上のノードのみ展開する
+                    // パス上のノードのみ展開する(IsExpanded の setter が遅延読み込みを行うため、
+                    // 既に展開済みの場合のみ明示的に再読込して削除済みフォルダを検知する)
+                    if (node.IsExpanded)
+                    {
+                        node.EnsureChildrenLoaded();
+                    }
+                    else
+                    {
+                        node.IsExpanded = true;
+                    }
                     var child = node.Children.FirstOrDefault(
                         c => string.Equals(c.Name, segment, StringComparison.OrdinalIgnoreCase));
                     if (child is null)
