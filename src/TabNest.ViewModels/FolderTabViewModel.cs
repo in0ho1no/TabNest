@@ -19,7 +19,10 @@ public sealed class FolderTabViewModel : ViewModelBase
 
     public string Id => _model.Id;
 
-    /// <summary>現在表示中のフォルダパス。</summary>
+    /// <summary>このタブ専用の戻る・進む履歴(タブを切り替えても履歴は混ざらない)。</summary>
+    public NavigationHistory History { get; } = new();
+
+    /// <summary>現在表示中のフォルダパス。フォルダ移動のたびに更新される。</summary>
     public string Path => _model.Path;
 
     /// <summary>タブに表示するタイトル(現在表示中のフォルダ名)。</summary>
@@ -40,5 +43,19 @@ public sealed class FolderTabViewModel : ViewModelBase
     {
         get => _isActive;
         set => SetProperty(ref _isActive, value);
+    }
+
+    /// <summary>
+    /// フォルダ移動に追従して、タブの Path とタイトルを移動先に更新する。
+    /// </summary>
+    public void UpdateLocation(string path, string title)
+    {
+        if (_model.Path != path)
+        {
+            _model.Path = path;
+            OnPropertyChanged(nameof(Path));
+        }
+
+        Title = title;
     }
 }

@@ -15,6 +15,8 @@ public sealed class MainViewModel : ViewModelBase
     public MainViewModel(IFileSystemService fileSystemService, IFileLauncher fileLauncher)
     {
         Folder = new FolderViewModel(fileSystemService, fileLauncher);
+        // フォルダ移動のたびにアクティブタブの Path とタイトルを移動先に更新する
+        Folder.Navigated += (_, path) => UpdateActiveTabLocation(path);
         InitializeDefaultTabs();
     }
 
@@ -31,15 +33,16 @@ public sealed class MainViewModel : ViewModelBase
     /// <summary>タブグループ(表示順)。</summary>
     public ObservableCollection<TabGroupViewModel> Groups { get; } = [];
 
-    /// <summary>初期表示フォルダ(%UserProfile%)を読み込む。</summary>
+    /// <summary>初期タブを選択して初期表示フォルダ(%UserProfile%)を読み込む。</summary>
     public bool LoadInitialFolder()
-        => Folder.LoadFolder(UserProfilePath);
+        => Groups.Count > 0 && Groups[0].Tabs.Count > 0 && SelectTab(Groups[0].Tabs[0]);
 
     private static string UserProfilePath
         => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     /// <summary>
-    /// タブを選択してアクティブにし、そのタブのフォルダ内容を表示する。
+    /// タブを選択してアクティブにし、そのタブの履歴を接続してフォルダ内容を表示する。
+    /// タブ切替は履歴に記録しない(各タブの履歴は独立)。
     /// フォルダの読み込みに失敗してもタブ選択は維持される(エラーは Folder.ErrorMessage に表示)。
     /// </summary>
     public bool SelectTab(FolderTabViewModel tab)
@@ -50,7 +53,8 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         ApplyActiveStates();
-        Folder.LoadFolder(tab.Path);
+        Folder.AttachHistory(tab.History);
+        Folder.ShowFolder(tab.Path);
         return true;
     }
 
@@ -70,9 +74,11 @@ public sealed class MainViewModel : ViewModelBase
         groupVm?.Tabs.Remove(tab);
         ApplyActiveStates();
 
-        if (wasActive && _tabManager.ActiveTab is { } newActive)
+        if (wasActive && _tabManager.ActiveTabId is string newActiveId
+            && FindTabViewModel(newActiveId) is { } newActiveVm)
         {
-            Folder.LoadFolder(newActive.Path);
+            Folder.AttachHistory(newActiveVm.History);
+            Folder.ShowFolder(newActiveVm.Path);
         }
 
         return true;
@@ -102,14 +108,22 @@ public sealed class MainViewModel : ViewModelBase
         var tab = result.Value!;
         var group = _tabManager.Groups.First(g => g.Tabs.Contains(tab));
         var groupVm = Groups.FirstOrDefault(g => g.Id == group.Id);
+        FolderTabViewModel? tabVm = null;
         if (groupVm is not null)
         {
             var index = group.Tabs.IndexOf(tab);
-            groupVm.Tabs.Insert(index, new FolderTabViewModel(tab));
+            tabVm = new FolderTabViewModel(tab);
+            groupVm.Tabs.Insert(index, tabVm);
         }
 
         ApplyActiveStates();
-        Folder.LoadFolder(tab.Path);
+        if (tabVm is not null)
+        {
+            // 復元したタブの履歴(新規)を接続して内容を表示する
+            Folder.AttachHistory(tabVm.History);
+            Folder.ShowFolder(tabVm.Path);
+        }
+
         return true;
     }
 
@@ -134,6 +148,9 @@ public sealed class MainViewModel : ViewModelBase
         var tabVm = new FolderTabViewModel(result.Value!);
         groupVm.Tabs.Add(tabVm);
         ApplyActiveStates();
+        // 追加されたタブはアクティブになるため、履歴を接続して内容を表示する
+        Folder.AttachHistory(tabVm.History);
+        Folder.ShowFolder(tabVm.Path);
         return tabVm;
     }
 
@@ -166,6 +183,18 @@ public sealed class MainViewModel : ViewModelBase
             tab.IsActive = tab.Id == activeId;
         }
     }
+
+    /// <summary>フォルダ移動に追従してアクティブタブの Path とタイトルを更新する。</summary>
+    private void UpdateActiveTabLocation(string path)
+    {
+        if (_tabManager.ActiveTabId is string activeId && FindTabViewModel(activeId) is { } tabVm)
+        {
+            tabVm.UpdateLocation(path, GetTabTitle(path));
+        }
+    }
+
+    private FolderTabViewModel? FindTabViewModel(string tabId)
+        => Groups.SelectMany(g => g.Tabs).FirstOrDefault(t => t.Id == tabId);
 
     /// <summary>
     /// パスからタブタイトルを生成する。通常はフォルダ名、ドライブルートは "C:\" 形式。
