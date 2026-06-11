@@ -1,4 +1,4 @@
-using TabNest.Core.Models;
+﻿using TabNest.Core.Models;
 
 namespace TabNest.ViewModels.Tests;
 
@@ -13,6 +13,14 @@ public class FileItemViewModelTests
             LastModifiedAt = new DateTime(2026, 6, 3, 12, 0, 0),
             SizeInBytes = size,
         });
+
+    [Fact]
+    public void IconGlyph_フォルダとファイルで異なるグリフを返す()
+    {
+        // Segoe Fluent Icons: フォルダ U+E8B7(Folder)、ファイル U+E7C3(Page)
+        Assert.Equal("", Create("docs", isDirectory: true).IconGlyph);
+        Assert.Equal("", Create("a.txt", isDirectory: false, size: 10).IconGlyph);
+    }
 
     [Fact]
     public void TypeText_フォルダは種別フォルダ()

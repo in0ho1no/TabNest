@@ -89,25 +89,26 @@
             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,0,0,1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="28" />
+                <ColumnDefinition Width="292" />
                 <ColumnDefinition Width="140" />
                 <ColumnDefinition Width="150" />
                 <ColumnDefinition Width="90" />
             </Grid.ColumnDefinitions>
             <TextBlock
-                Grid.Column="0"
+                Grid.Column="1"
                 Style="{ThemeResource CaptionTextBlockStyle}"
                 Text="名前" />
             <TextBlock
-                Grid.Column="1"
+                Grid.Column="2"
                 Style="{ThemeResource CaptionTextBlockStyle}"
                 Text="種別" />
             <TextBlock
-                Grid.Column="2"
+                Grid.Column="3"
                 Style="{ThemeResource CaptionTextBlockStyle}"
                 Text="更新日時" />
             <TextBlock
-                Grid.Column="3"
+                Grid.Column="4"
                 HorizontalAlignment="Right"
                 Style="{ThemeResource CaptionTextBlockStyle}"
                 Text="サイズ" />
@@ -125,25 +126,34 @@
                 <DataTemplate x:DataType="vm:FileItemViewModel">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="320" />
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="292" />
                             <ColumnDefinition Width="140" />
                             <ColumnDefinition Width="150" />
                             <ColumnDefinition Width="90" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock
+                        <FontIcon
                             Grid.Column="0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                            FontSize="16"
+                            Glyph="{x:Bind IconGlyph}" />
+                        <TextBlock
+                            Grid.Column="1"
                             Text="{x:Bind Name}"
                             TextTrimming="CharacterEllipsis" />
                         <TextBlock
-                            Grid.Column="1"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="{x:Bind TypeText}" />
-                        <TextBlock
                             Grid.Column="2"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind TypeText}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Grid.Column="3"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Text="{x:Bind LastModifiedText}" />
                         <TextBlock
-                            Grid.Column="3"
+                            Grid.Column="4"
                             HorizontalAlignment="Right"
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             Text="{x:Bind SizeText}" />
