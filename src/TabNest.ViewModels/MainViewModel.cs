@@ -78,6 +78,41 @@ public sealed class MainViewModel : ViewModelBase
         return true;
     }
 
+    /// <summary>グループ名のインライン編集中かどうか(編集中はショートカットを無効にする)。</summary>
+    public bool IsRenameInProgress => Groups.Any(g => g.IsEditingName);
+
+    /// <summary>
+    /// 最後に閉じたタブを復元する(Ctrl+Shift+T)。
+    /// グループ名編集中は何も実行しない(編集状態を維持する)。
+    /// 復元したタブはアクティブになり、そのフォルダ内容を表示する。
+    /// </summary>
+    public bool RestoreClosedTab()
+    {
+        if (IsRenameInProgress)
+        {
+            return false;
+        }
+
+        var result = _tabManager.RestoreClosedTab();
+        if (!result.IsSuccess)
+        {
+            return false;
+        }
+
+        var tab = result.Value!;
+        var group = _tabManager.Groups.First(g => g.Tabs.Contains(tab));
+        var groupVm = Groups.FirstOrDefault(g => g.Id == group.Id);
+        if (groupVm is not null)
+        {
+            var index = group.Tabs.IndexOf(tab);
+            groupVm.Tabs.Insert(index, new FolderTabViewModel(tab));
+        }
+
+        ApplyActiveStates();
+        Folder.LoadFolder(tab.Path);
+        return true;
+    }
+
     /// <summary>
     /// 指定グループの末尾に新規タブを追加する(追加されたタブはアクティブになる)。
     /// UI(ボタン・Ctrl+T)への接続は Task 3-10 で行う。
