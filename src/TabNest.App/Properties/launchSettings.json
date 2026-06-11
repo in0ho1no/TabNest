@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "TabNest.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "TabNest.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
