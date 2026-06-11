@@ -68,7 +68,8 @@
                             BorderThickness="1"
                             CornerRadius="4"
                             PointerPressed="TabItem_PointerPressed"
-                            Tapped="TabItem_Tapped">
+                            Tapped="TabItem_Tapped"
+                            ToolTipService.ToolTip="{x:Bind Path, Mode=OneWay}">
                             <TextBlock
                                 Foreground="{x:Bind local:TabGroupRow.TabForeground(IsActive), Mode=OneWay}"
                                 Text="{x:Bind Title, Mode=OneWay}"

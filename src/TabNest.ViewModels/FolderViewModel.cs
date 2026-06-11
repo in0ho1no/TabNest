@@ -73,8 +73,26 @@ public sealed class FolderViewModel : ViewModelBase
     public bool CanNavigateUp
         => !string.IsNullOrEmpty(CurrentPath) && Path.GetDirectoryName(CurrentPath) is not null;
 
-    /// <summary>戻る・進む履歴。Task 3-7 でタブごとに所有者を移す。</summary>
-    public NavigationHistory History { get; } = new();
+    /// <summary>
+    /// フォルダの読み込みに成功したときに移動先パスを通知する。
+    /// (タブタイトルの追従更新などに使用)
+    /// </summary>
+    public event EventHandler<string>? Navigated;
+
+    /// <summary>
+    /// 戻る・進む履歴。タブごとの履歴を <see cref="AttachHistory"/> で差し替えて使う。
+    /// </summary>
+    public NavigationHistory History { get; private set; } = new();
+
+    /// <summary>
+    /// 履歴を差し替える(タブ切替時にそのタブの履歴を接続する)。
+    /// 戻る・進む可否はアタッチした履歴の状態に更新される。
+    /// </summary>
+    public void AttachHistory(NavigationHistory history)
+    {
+        History = history;
+        RaiseHistoryStateChanged();
+    }
 
     /// <summary>戻る操作が可能か。</summary>
     public bool CanGoBack => History.CanGoBack;
@@ -161,6 +179,13 @@ public sealed class FolderViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// 履歴に記録せずにフォルダを表示する(タブ切替時の復元用)。
+    /// 失敗時は状態を変更せず ErrorMessage のみ設定する。
+    /// </summary>
+    public bool ShowFolder(string path)
+        => LoadFolderCore(NormalizePath(path));
+
+    /// <summary>
     /// フォルダを読み込み、成功時に CurrentPath・AddressBarText・Items を更新する(履歴は変更しない)。
     /// 失敗時は状態を変更せず ErrorMessage のみ設定する。
     /// </summary>
@@ -187,6 +212,7 @@ public sealed class FolderViewModel : ViewModelBase
         CurrentPath = path;
         AddressBarText = path;
         ErrorMessage = null;
+        Navigated?.Invoke(this, path);
         return true;
     }
 
