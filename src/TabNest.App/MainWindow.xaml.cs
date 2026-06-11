@@ -1,4 +1,5 @@
 ﻿using Microsoft.UI.Xaml;
+using TabNest.Core.Services;
 using TabNest.ViewModels;
 
 namespace TabNest.App;
@@ -10,7 +11,7 @@ namespace TabNest.App;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    public MainViewModel ViewModel { get; } = new();
+    public MainViewModel ViewModel { get; } = new(new FileSystemService());
 
     public MainWindow()
     {
@@ -24,7 +25,8 @@ public sealed partial class MainWindow : Window
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
 
-        // Navigate the root frame to the main page on startup.
-        RootFrame.Navigate(typeof(MainPage));
+        // 初期表示フォルダ(%UserProfile%)を読み込んでからメインページへ遷移する。
+        ViewModel.LoadInitialFolder();
+        RootFrame.Navigate(typeof(MainPage), ViewModel);
     }
 }

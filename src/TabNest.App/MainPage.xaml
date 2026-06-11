@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="TabNest.App.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -6,13 +6,92 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:TabNest.App"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:TabNest.ViewModels"
     mc:Ignorable="d">
 
-    <!--
-        This is the main content area of your application.
-        Add your UI elements here — for example, controls, layouts, and data-bound views.
-        Use 'dotnet new winui-page' to create additional pages and navigate to them via
-        the Frame in MainWindow (RootFrame).
-    -->
-    <Grid />
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!--  現在のパス表示  -->
+        <TextBlock
+            x:Name="CurrentPathText"
+            Grid.Row="0"
+            Margin="4,0,4,8"
+            AutomationProperties.AutomationId="CurrentPathText"
+            Style="{ThemeResource BodyStrongTextBlockStyle}"
+            Text="{x:Bind ViewModel.Folder.CurrentPath, Mode=OneWay}" />
+
+        <!--  自前ヘッダー行(WinUI 3 では DataGrid 系を使わない方針)  -->
+        <Grid
+            Grid.Row="1"
+            Padding="16,0,16,4"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,0,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="150" />
+                <ColumnDefinition Width="90" />
+            </Grid.ColumnDefinitions>
+            <TextBlock
+                Grid.Column="0"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="名前" />
+            <TextBlock
+                Grid.Column="1"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="種別" />
+            <TextBlock
+                Grid.Column="2"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="更新日時" />
+            <TextBlock
+                Grid.Column="3"
+                HorizontalAlignment="Right"
+                Style="{ThemeResource CaptionTextBlockStyle}"
+                Text="サイズ" />
+        </Grid>
+
+        <!--  ファイル一覧  -->
+        <ListView
+            x:Name="FileListView"
+            Grid.Row="2"
+            AutomationProperties.AutomationId="FileListView"
+            ItemsSource="{x:Bind ViewModel.Folder.Items, Mode=OneWay}"
+            SelectionMode="Single">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:FileItemViewModel">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="320" />
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="90" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Grid.Column="0"
+                            Text="{x:Bind Name}"
+                            TextTrimming="CharacterEllipsis" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind TypeText}" />
+                        <TextBlock
+                            Grid.Column="2"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind LastModifiedText}" />
+                        <TextBlock
+                            Grid.Column="3"
+                            HorizontalAlignment="Right"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind SizeText}" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
 </Page>

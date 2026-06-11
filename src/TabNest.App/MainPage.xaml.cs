@@ -1,20 +1,29 @@
-﻿using Microsoft.UI.Xaml.Controls;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
+using TabNest.ViewModels;
 
 namespace TabNest.App;
 
 /// <summary>
 /// The main content page displayed inside the application window.
-/// Add your UI logic, event handlers, and data binding here.
 /// </summary>
 public sealed partial class MainPage : Page
 {
+    public MainViewModel? ViewModel { get; private set; }
+
     public MainPage()
     {
         InitializeComponent();
+    }
 
-        // TODO: Add your initialization logic here.
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+
+        if (e.Parameter is MainViewModel viewModel)
+        {
+            ViewModel = viewModel;
+            Bindings.Update();
+        }
     }
 }
