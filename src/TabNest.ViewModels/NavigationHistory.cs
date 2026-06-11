@@ -4,6 +4,7 @@ namespace TabNest.ViewModels;
 /// 戻る・進む履歴(BackStack / ForwardStack)。
 /// FolderViewModel から独立させ、Task 3-7 でタブごとに所有者を移せるようにする。
 /// 読み込み失敗時に履歴を巻き戻さなくて済むよう、Peek(参照)と Commit(確定)を分離している。
+/// 不変条件: スタックには空文字パスを積まない(呼び出し側が移動成立時のみ Record/Commit する)。
 /// </summary>
 public sealed class NavigationHistory
 {
