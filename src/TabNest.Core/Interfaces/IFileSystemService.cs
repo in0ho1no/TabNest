@@ -13,4 +13,10 @@ public interface IFileSystemService
     /// 存在しないパス・アクセス不可の場合は失敗結果を返し、例外を送出しない。
     /// </summary>
     FolderListingResult ListFolder(string path);
+
+    /// <summary>
+    /// 利用可能なローカルドライブのルートパス(例: C:\)を取得する。
+    /// IsReady でないドライブは含めない。失敗時は空リストを返す。
+    /// </summary>
+    IReadOnlyList<string> GetReadyDriveRoots();
 }

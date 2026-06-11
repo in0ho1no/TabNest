@@ -48,4 +48,23 @@ public sealed class FileSystemService : IFileSystemService
             return FolderListingResult.Failure($"フォルダの読み取りに失敗しました: {ex.Message}");
         }
     }
+
+    public IReadOnlyList<string> GetReadyDriveRoots()
+    {
+        try
+        {
+            return DriveInfo.GetDrives()
+                .Where(d => d.IsReady)
+                .Select(d => d.RootDirectory.FullName)
+                .ToList();
+        }
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
 }
