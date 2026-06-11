@@ -13,21 +13,45 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!--  現在のパス表示  -->
-        <TextBlock
-            x:Name="CurrentPathText"
-            Grid.Row="0"
-            Margin="4,0,4,8"
-            AutomationProperties.AutomationId="CurrentPathText"
-            Style="{ThemeResource BodyStrongTextBlockStyle}"
-            Text="{x:Bind ViewModel.Folder.CurrentPath, Mode=OneWay}" />
+        <!--  ナビゲーションバー(上へ・アドレスバー)  -->
+        <Grid Grid.Row="0" Margin="0,0,0,8" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button
+                x:Name="UpButton"
+                Grid.Column="0"
+                AutomationProperties.AutomationId="UpButton"
+                Command="{x:Bind ViewModel.Folder.NavigateUpCommand, Mode=OneWay}"
+                Content="&#xE74A;"
+                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                ToolTipService.ToolTip="上の階層へ" />
+            <TextBox
+                x:Name="PathTextBox"
+                Grid.Column="1"
+                AutomationProperties.AutomationId="PathTextBox"
+                KeyDown="PathTextBox_KeyDown"
+                Text="{x:Bind ViewModel.Folder.AddressBarText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        </Grid>
+
+        <!--  エラー表示  -->
+        <InfoBar
+            x:Name="ErrorInfoBar"
+            Grid.Row="1"
+            Margin="0,0,0,8"
+            AutomationProperties.AutomationId="ErrorInfoBar"
+            IsOpen="{x:Bind local:MainPage.HasText(ViewModel.Folder.ErrorMessage), Mode=OneWay}"
+            Message="{x:Bind ViewModel.Folder.ErrorMessage, Mode=OneWay}"
+            Severity="Error" />
 
         <!--  自前ヘッダー行(WinUI 3 では DataGrid 系を使わない方針)  -->
         <Grid
-            Grid.Row="1"
+            Grid.Row="2"
             Padding="16,0,16,4"
             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,0,0,1">
@@ -59,8 +83,9 @@
         <!--  ファイル一覧  -->
         <ListView
             x:Name="FileListView"
-            Grid.Row="2"
+            Grid.Row="3"
             AutomationProperties.AutomationId="FileListView"
+            DoubleTapped="FileListView_DoubleTapped"
             ItemsSource="{x:Bind ViewModel.Folder.Items, Mode=OneWay}"
             SelectionMode="Single">
             <ListView.ItemTemplate>

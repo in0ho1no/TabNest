@@ -23,7 +23,7 @@ public class FolderViewModelTests
             Entry("a.txt", isDirectory: false, size: 10),
             Entry("docs", isDirectory: true),
         ]));
-        var vm = new FolderViewModel(stub);
+        var vm = new FolderViewModel(stub, new SpyFileLauncher());
 
         var ok = vm.LoadFolder(@"C:\test");
 
@@ -44,7 +44,7 @@ public class FolderViewModelTests
             Entry("a.txt", isDirectory: false),
             Entry("alpha", isDirectory: true),
         ]));
-        var vm = new FolderViewModel(stub);
+        var vm = new FolderViewModel(stub, new SpyFileLauncher());
 
         vm.LoadFolder(@"C:\test");
 
@@ -56,7 +56,7 @@ public class FolderViewModelTests
     {
         var stub = new StubFileSystemService();
         stub.Setup(@"C:\ok", FolderListingResult.Success([Entry("a.txt", isDirectory: false)]));
-        var vm = new FolderViewModel(stub);
+        var vm = new FolderViewModel(stub, new SpyFileLauncher());
         vm.LoadFolder(@"C:\ok");
 
         var ok = vm.LoadFolder(@"C:\missing");
@@ -73,7 +73,7 @@ public class FolderViewModelTests
     {
         var stub = new StubFileSystemService();
         stub.Setup(@"C:\ok", FolderListingResult.Success([]));
-        var vm = new FolderViewModel(stub);
+        var vm = new FolderViewModel(stub, new SpyFileLauncher());
         vm.LoadFolder(@"C:\missing");
         Assert.NotNull(vm.ErrorMessage);
 
@@ -87,7 +87,7 @@ public class FolderViewModelTests
     {
         var stub = new StubFileSystemService();
         stub.Setup(@"C:\cmd", FolderListingResult.Success([Entry("x.txt", isDirectory: false)]));
-        var vm = new FolderViewModel(stub);
+        var vm = new FolderViewModel(stub, new SpyFileLauncher());
 
         vm.LoadFolderCommand.Execute(@"C:\cmd");
 

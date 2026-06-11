@@ -6,7 +6,7 @@ namespace TabNest.ViewModels.Tests;
 public class MainViewModelTests
 {
     private static MainViewModel CreateViewModel(StubFileSystemService? stub = null)
-        => new(stub ?? new StubFileSystemService());
+        => new(stub ?? new StubFileSystemService(), new SpyFileLauncher());
 
     [Fact]
     public void Title_初期値はTabNest()

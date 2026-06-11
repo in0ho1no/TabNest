@@ -9,9 +9,9 @@ public sealed class MainViewModel : ViewModelBase
 {
     private string _title = "TabNest";
 
-    public MainViewModel(IFileSystemService fileSystemService)
+    public MainViewModel(IFileSystemService fileSystemService, IFileLauncher fileLauncher)
     {
-        Folder = new FolderViewModel(fileSystemService);
+        Folder = new FolderViewModel(fileSystemService, fileLauncher);
     }
 
     /// <summary>ウィンドウタイトル。初期値は "TabNest"。</summary>
