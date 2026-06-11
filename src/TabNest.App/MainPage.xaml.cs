@@ -48,4 +48,12 @@ public sealed partial class MainPage : Page
             ViewModel?.Folder.OpenItemCommand.Execute(item);
         }
     }
+
+    private void FolderTreeView_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItem is FolderTreeNodeViewModel node)
+        {
+            ViewModel?.Tree.ActivateNode(node);
+        }
+    }
 }

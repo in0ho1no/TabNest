@@ -15,8 +15,13 @@ public sealed class MainViewModel : ViewModelBase
     public MainViewModel(IFileSystemService fileSystemService, IFileLauncher fileLauncher)
     {
         Folder = new FolderViewModel(fileSystemService, fileLauncher);
-        // フォルダ移動のたびにアクティブタブの Path とタイトルを移動先に更新する
-        Folder.Navigated += (_, path) => UpdateActiveTabLocation(path);
+        Tree = new FolderTreeViewModel(fileSystemService, path => Folder.LoadFolder(path));
+        // フォルダ移動のたびにアクティブタブの Path/タイトル更新とツリー選択の追従を行う
+        Folder.Navigated += (_, path) =>
+        {
+            UpdateActiveTabLocation(path);
+            Tree.RevealPath(path);
+        };
         InitializeDefaultTabs();
     }
 
@@ -29,6 +34,9 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>表示中フォルダのファイル一覧 ViewModel。</summary>
     public FolderViewModel Folder { get; }
+
+    /// <summary>左カラムのフォルダツリー ViewModel。</summary>
+    public FolderTreeViewModel Tree { get; }
 
     /// <summary>タブグループ(表示順)。</summary>
     public ObservableCollection<TabGroupViewModel> Groups { get; } = [];

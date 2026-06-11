@@ -7,12 +7,12 @@
     xmlns:local="using:TabNest.App"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:TabNest.App.Controls"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     xmlns:vm="using:TabNest.ViewModels"
     mc:Ignorable="d">
 
     <Grid Margin="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -82,46 +82,113 @@
             Message="{x:Bind ViewModel.Folder.ErrorMessage, Mode=OneWay}"
             Severity="Error" />
 
-        <!--  自前ヘッダー行(WinUI 3 では DataGrid 系を使わない方針)  -->
-        <Grid
-            Grid.Row="3"
-            Padding="16,0,16,4"
-            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-            BorderThickness="0,0,0,1">
+        <!--  メインコンテンツ: 左カラム(お気に入り+フォルダツリー) | スプリッター | ファイル一覧  -->
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="28" />
-                <ColumnDefinition Width="292" />
-                <ColumnDefinition Width="140" />
-                <ColumnDefinition Width="150" />
-                <ColumnDefinition Width="90" />
+                <ColumnDefinition
+                    x:Name="LeftPaneColumn"
+                    Width="220"
+                    MinWidth="150" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <TextBlock
-                Grid.Column="1"
-                Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="名前" />
-            <TextBlock
-                Grid.Column="2"
-                Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="種別" />
-            <TextBlock
-                Grid.Column="3"
-                Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="更新日時" />
-            <TextBlock
-                Grid.Column="4"
-                HorizontalAlignment="Right"
-                Style="{ThemeResource CaptionTextBlockStyle}"
-                Text="サイズ" />
-        </Grid>
 
-        <!--  ファイル一覧  -->
-        <ListView
-            x:Name="FileListView"
-            Grid.Row="4"
-            AutomationProperties.AutomationId="FileListView"
-            DoubleTapped="FileListView_DoubleTapped"
-            ItemsSource="{x:Bind ViewModel.Folder.Items, Mode=OneWay}"
-            SelectionMode="Single">
+            <!--  左カラム: 上=お気に入り(Task 4-6 で実装)、下=フォルダツリー  -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel
+                    Grid.Row="0"
+                    Padding="8"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,0,1">
+                    <TextBlock
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="★ お気に入り" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="(Task 4-6 で実装予定)" />
+                </StackPanel>
+                <TreeView
+                    x:Name="FolderTreeView"
+                    Grid.Row="1"
+                    AutomationProperties.AutomationId="FolderTreeView"
+                    CanDragItems="False"
+                    CanReorderItems="False"
+                    ItemInvoked="FolderTreeView_ItemInvoked"
+                    ItemsSource="{x:Bind ViewModel.Tree.Roots, Mode=OneWay}"
+                    SelectionMode="Single">
+                    <TreeView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FolderTreeNodeViewModel">
+                            <TreeViewItem
+                                IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                                IsSelected="{x:Bind IsSelected, Mode=TwoWay}"
+                                ItemsSource="{x:Bind Children}">
+                                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                            </TreeViewItem>
+                        </DataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Grid>
+
+            <!--  スプリッター(CommunityToolkit.WinUI GridSplitter・依存追加承認済み)  -->
+            <toolkit:GridSplitter
+                Grid.Column="1"
+                Width="8"
+                AutomationProperties.AutomationId="LeftPaneSplitter"
+                ResizeBehavior="BasedOnAlignment"
+                ResizeDirection="Auto" />
+
+            <!--  右側: ヘッダー行+ファイル一覧  -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!--  自前ヘッダー行(WinUI 3 では DataGrid 系を使わない方針)  -->
+                <Grid
+                    Grid.Row="0"
+                    Padding="16,0,16,4"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,0,1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="292" />
+                        <ColumnDefinition Width="140" />
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="90" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        Grid.Column="1"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="名前" />
+                    <TextBlock
+                        Grid.Column="2"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="種別" />
+                    <TextBlock
+                        Grid.Column="3"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="更新日時" />
+                    <TextBlock
+                        Grid.Column="4"
+                        HorizontalAlignment="Right"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Text="サイズ" />
+                </Grid>
+
+                <!--  ファイル一覧  -->
+                <ListView
+                    x:Name="FileListView"
+                    Grid.Row="1"
+                    AutomationProperties.AutomationId="FileListView"
+                    DoubleTapped="FileListView_DoubleTapped"
+                    ItemsSource="{x:Bind ViewModel.Folder.Items, Mode=OneWay}"
+                    SelectionMode="Single">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileItemViewModel">
                     <Grid>
@@ -161,5 +228,7 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+            </Grid>
+        </Grid>
     </Grid>
 </Page>
