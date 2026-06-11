@@ -55,6 +55,30 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// タブを閉じる(ホイールクリック)。アクティブタブを閉じた場合は
+    /// 新しいアクティブタブのフォルダ内容を表示する。
+    /// </summary>
+    public bool CloseTab(FolderTabViewModel tab)
+    {
+        var wasActive = tab.IsActive;
+        if (!_tabManager.CloseTab(tab.Id))
+        {
+            return false;
+        }
+
+        var groupVm = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
+        groupVm?.Tabs.Remove(tab);
+        ApplyActiveStates();
+
+        if (wasActive && _tabManager.ActiveTab is { } newActive)
+        {
+            Folder.LoadFolder(newActive.Path);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// 指定グループの末尾に新規タブを追加する(追加されたタブはアクティブになる)。
     /// UI(ボタン・Ctrl+T)への接続は Task 3-10 で行う。
     /// </summary>
@@ -92,7 +116,7 @@ public sealed class MainViewModel : ViewModelBase
 
         var group = groupResult.Value!;
         _tabManager.AddTab(group.Id, UserProfilePath, GetTabTitle(UserProfilePath));
-        Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab)));
+        Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab), tab => CloseTab(tab)));
         ApplyActiveStates();
     }
 

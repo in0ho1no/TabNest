@@ -91,4 +91,16 @@ public sealed partial class TabGroupRow : UserControl
             e.Handled = true;
         }
     }
+
+    private void TabItem_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        // 中クリックは PointerPressed の IsMiddleButtonPressed で検出する
+        // (Tapped / PointerReleased では取りこぼすため使わない — SPEC 実装ノート)
+        if (sender is FrameworkElement { DataContext: FolderTabViewModel tab } element
+            && e.GetCurrentPoint(element).Properties.IsMiddleButtonPressed)
+        {
+            ViewModel?.CloseTab(tab);
+            e.Handled = true;
+        }
+    }
 }

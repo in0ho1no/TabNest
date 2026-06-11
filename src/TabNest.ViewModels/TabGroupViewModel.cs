@@ -10,14 +10,19 @@ public sealed class TabGroupViewModel : ViewModelBase
 {
     private readonly TabGroup _model;
     private readonly Action<FolderTabViewModel>? _selectTab;
+    private readonly Action<FolderTabViewModel>? _closeTab;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
 
-    public TabGroupViewModel(TabGroup model, Action<FolderTabViewModel>? selectTab = null)
+    public TabGroupViewModel(
+        TabGroup model,
+        Action<FolderTabViewModel>? selectTab = null,
+        Action<FolderTabViewModel>? closeTab = null)
     {
         _model = model;
         _selectTab = selectTab;
+        _closeTab = closeTab;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -28,6 +33,9 @@ public sealed class TabGroupViewModel : ViewModelBase
 
     /// <summary>タブを左クリックで選択する(親 ViewModel に委譲)。</summary>
     public void SelectTab(FolderTabViewModel tab) => _selectTab?.Invoke(tab);
+
+    /// <summary>タブを中クリックで閉じる(親 ViewModel に委譲)。</summary>
+    public void CloseTab(FolderTabViewModel tab) => _closeTab?.Invoke(tab);
 
     public string Id => _model.Id;
 
