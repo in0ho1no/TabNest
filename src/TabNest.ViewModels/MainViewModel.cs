@@ -11,6 +11,7 @@ public sealed class MainViewModel : ViewModelBase
 {
     private readonly TabManagerService _tabManager = new();
     private string _title = "TabNest";
+    private string? _operationError;
 
     public MainViewModel(IFileSystemService fileSystemService, IFileLauncher fileLauncher)
     {
@@ -22,6 +23,8 @@ public sealed class MainViewModel : ViewModelBase
             UpdateActiveTabLocation(path);
             Tree.RevealPath(path);
         };
+        AddTabCommand = new RelayCommand(_ => AddTabToActiveGroup());
+        AddGroupCommand = new RelayCommand(_ => AddGroupWithDefaultTab());
         InitializeDefaultTabs();
     }
 
@@ -95,6 +98,82 @@ public sealed class MainViewModel : ViewModelBase
     /// <summary>グループ名のインライン編集中かどうか(編集中はショートカットを無効にする)。</summary>
     public bool IsRenameInProgress => Groups.Any(g => g.IsEditingName);
 
+    /// <summary>タブ・グループ操作のエラーメッセージ(上限到達など)。成功時は null に戻る。</summary>
+    public string? OperationError
+    {
+        get => _operationError;
+        private set => SetProperty(ref _operationError, value);
+    }
+
+    /// <summary>アクティブグループの末尾に新規タブ(%UserProfile%)を追加する。</summary>
+    public RelayCommand AddTabCommand { get; }
+
+    /// <summary>「作業N」グループを1段追加する(%UserProfile% の初期タブ付き)。</summary>
+    public RelayCommand AddGroupCommand { get; }
+
+    /// <summary>
+    /// アクティブグループの末尾に %UserProfile% を開く新規タブを追加する(ボタン / Ctrl+T)。
+    /// グループ名編集中は何も実行しない。上限到達時はエラーを表示して追加しない。
+    /// </summary>
+    public bool AddTabToActiveGroup()
+    {
+        if (IsRenameInProgress)
+        {
+            return false;
+        }
+
+        var groupId = _tabManager.ActiveGroupId;
+        return groupId is not null && AddTab(groupId, UserProfilePath) is not null;
+    }
+
+    /// <summary>
+    /// 「作業N」という名前の新規グループを1段追加し、%UserProfile% を開く初期タブを作成する
+    /// (ボタン / Ctrl+G)。グループ名編集中は何も実行しない。5段到達時はエラーを表示して追加しない。
+    /// </summary>
+    public bool AddGroupWithDefaultTab()
+    {
+        if (IsRenameInProgress)
+        {
+            return false;
+        }
+
+        var result = _tabManager.AddGroup(GenerateGroupName());
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        var group = result.Value!;
+        Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab), tab => CloseTab(tab)));
+        AddTab(group.Id, UserProfilePath);
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
+    /// 新規グループ名「作業N」を採番する。現在表示中の全グループ名のうち
+    /// 「作業&lt;整数&gt;」形式に完全一致する名前の最大値+1(マッチがなければ 1)。
+    /// 「作業1 (2)」のような完全一致しない名前は判定対象に含めない。
+    /// </summary>
+    public string GenerateGroupName()
+    {
+        var max = 0L;
+        foreach (var group in Groups)
+        {
+            var name = group.Name;
+            if (name.StartsWith("作業", StringComparison.Ordinal)
+                && long.TryParse(name.AsSpan(2), out var number)
+                && number > 0
+                && name == $"作業{number}")
+            {
+                max = Math.Max(max, number);
+            }
+        }
+
+        return $"作業{max + 1}";
+    }
+
     /// <summary>
     /// 最後に閉じたタブを復元する(Ctrl+Shift+T)。
     /// グループ名編集中は何も実行しない(編集状態を維持する)。
@@ -137,13 +216,14 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>
     /// 指定グループの末尾に新規タブを追加する(追加されたタブはアクティブになる)。
-    /// UI(ボタン・Ctrl+T)への接続は Task 3-10 で行う。
+    /// 上限到達などの失敗時は OperationError を設定して null を返す。
     /// </summary>
     internal FolderTabViewModel? AddTab(string groupId, string path)
     {
         var result = _tabManager.AddTab(groupId, path, GetTabTitle(path));
         if (!result.IsSuccess)
         {
+            OperationError = result.ErrorMessage;
             return null;
         }
 
@@ -159,6 +239,7 @@ public sealed class MainViewModel : ViewModelBase
         // 追加されたタブはアクティブになるため、履歴を接続して内容を表示する
         Folder.AttachHistory(tabVm.History);
         Folder.ShowFolder(tabVm.Path);
+        OperationError = null;
         return tabVm;
     }
 

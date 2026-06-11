@@ -32,13 +32,15 @@
             </ItemsControl.ItemTemplate>
         </ItemsControl>
 
-        <!--  ナビゲーションバー(戻る・進む・上へ・アドレスバー)  -->
+        <!--  ナビゲーションバー(戻る・進む・上へ・アドレスバー・タブ追加・グループ追加)  -->
         <Grid Grid.Row="1" Margin="0,0,0,8" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Button
                 x:Name="BackButton"
@@ -70,17 +72,39 @@
                 AutomationProperties.AutomationId="PathTextBox"
                 KeyDown="PathTextBox_KeyDown"
                 Text="{x:Bind ViewModel.Folder.AddressBarText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Button
+                x:Name="AddTabButton"
+                Grid.Column="4"
+                AutomationProperties.AutomationId="AddTabButton"
+                Command="{x:Bind ViewModel.AddTabCommand, Mode=OneWay}"
+                Content="タブ追加"
+                ToolTipService.ToolTip="アクティブグループの末尾に新規タブを追加 (Ctrl+T)" />
+            <Button
+                x:Name="AddGroupButton"
+                Grid.Column="5"
+                AutomationProperties.AutomationId="AddGroupButton"
+                Command="{x:Bind ViewModel.AddGroupCommand, Mode=OneWay}"
+                Content="グループ追加"
+                ToolTipService.ToolTip="タブグループを1段追加 (Ctrl+G)" />
         </Grid>
 
         <!--  エラー表示  -->
-        <InfoBar
-            x:Name="ErrorInfoBar"
-            Grid.Row="2"
-            Margin="0,0,0,8"
-            AutomationProperties.AutomationId="ErrorInfoBar"
-            IsOpen="{x:Bind local:MainPage.HasText(ViewModel.Folder.ErrorMessage), Mode=OneWay}"
-            Message="{x:Bind ViewModel.Folder.ErrorMessage, Mode=OneWay}"
-            Severity="Error" />
+        <StackPanel Grid.Row="2">
+            <InfoBar
+                x:Name="ErrorInfoBar"
+                Margin="0,0,0,8"
+                AutomationProperties.AutomationId="ErrorInfoBar"
+                IsOpen="{x:Bind local:MainPage.HasText(ViewModel.Folder.ErrorMessage), Mode=OneWay}"
+                Message="{x:Bind ViewModel.Folder.ErrorMessage, Mode=OneWay}"
+                Severity="Error" />
+            <InfoBar
+                x:Name="OperationErrorInfoBar"
+                Margin="0,0,0,8"
+                AutomationProperties.AutomationId="OperationErrorInfoBar"
+                IsOpen="{x:Bind local:MainPage.HasText(ViewModel.OperationError), Mode=OneWay}"
+                Message="{x:Bind ViewModel.OperationError, Mode=OneWay}"
+                Severity="Error" />
+        </StackPanel>
 
         <!--  メインコンテンツ: 左カラム(お気に入り+フォルダツリー) | スプリッター | ファイル一覧  -->
         <Grid Grid.Row="3">
