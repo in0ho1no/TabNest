@@ -16,6 +16,14 @@
             <!--  ショートカットはウィンドウのルート要素に設定する(SPEC「ショートカットキー」)  -->
             <KeyboardAccelerator
                 Key="T"
+                Invoked="AddTabAccelerator_Invoked"
+                Modifiers="Control" />
+            <KeyboardAccelerator
+                Key="G"
+                Invoked="AddGroupAccelerator_Invoked"
+                Modifiers="Control" />
+            <KeyboardAccelerator
+                Key="T"
                 Invoked="RestoreClosedTabAccelerator_Invoked"
                 Modifiers="Control,Shift" />
         </Grid.KeyboardAccelerators>

@@ -38,4 +38,20 @@ public sealed partial class MainWindow : Window
         ViewModel.RestoreClosedTab();
         args.Handled = true;
     }
+
+    private void AddTabAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        ViewModel.AddTabToActiveGroup();
+        args.Handled = true;
+    }
+
+    private void AddGroupAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        ViewModel.AddGroupWithDefaultTab();
+        args.Handled = true;
+    }
 }
