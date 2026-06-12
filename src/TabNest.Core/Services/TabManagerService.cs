@@ -134,6 +134,49 @@ public sealed class TabManagerService
     }
 
     /// <summary>
+    /// お気に入り(保存済みタブグループ)を新しい段として開く(SPEC「お気に入り」準拠)。
+    /// 開いたグループの名前はお気に入りの名前をそのまま使い、先頭のタブをアクティブにする。
+    /// 5段上限到達時は開かず失敗結果を返す。パスの実在チェックは行わない
+    /// (存在しないパスのタブは表示時にエラーとなるが、タブ自体は開く)。
+    /// </summary>
+    /// <param name="favorite">開くお気に入り。</param>
+    /// <param name="titleForPath">パスからタブタイトルを生成する関数。</param>
+    public TabOperationResult<TabGroup> OpenSavedGroup(
+        SavedTabGroup favorite, Func<string, string> titleForPath)
+    {
+        if (_groups.Count >= MaxGroups)
+        {
+            return TabOperationResult<TabGroup>.Failure(
+                TabOperationError.GroupLimitReached,
+                $"タブグループは最大 {MaxGroups} 段までです。");
+        }
+
+        var group = new TabGroup
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = favorite.Name,
+        };
+        foreach (var path in favorite.Paths.Take(MaxTabsPerGroup))
+        {
+            group.Tabs.Add(new FolderTab
+            {
+                Id = Guid.NewGuid().ToString(),
+                Path = path,
+                Title = titleForPath(path),
+                CreatedAt = DateTime.Now,
+            });
+        }
+
+        _groups.Add(group);
+        if (group.Tabs.Count > 0)
+        {
+            SetActiveTab(group.Tabs[0].Id);
+        }
+
+        return TabOperationResult<TabGroup>.Success(group);
+    }
+
+    /// <summary>
     /// グループを削除する。最後の1グループ(下限1)は削除できない。
     /// 削除したグループがアクティブだった場合は先頭の残存グループをアクティブにする。
     /// (グループ削除 UI は v0.2 以降。本メソッドは下限制御のためのサービス操作)
