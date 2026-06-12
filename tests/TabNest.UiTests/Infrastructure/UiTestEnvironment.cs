@@ -36,6 +36,27 @@ public static class UiTestEnvironment
     public const string AppProcessName = "TabNest.App";
 
     /// <summary>
+    /// テスト対象アプリが実際に読み書きする settings.json のフルパス。
+    /// パッケージアプリのため %AppData% への書き込みは
+    /// %LocalAppData%\Packages\&lt;PFN&gt;\LocalCache\Roaming に仮想化される。
+    /// </summary>
+    public static string SettingsFilePath
+    {
+        get
+        {
+            var packageFamilyName = AppId.Split('!')[0];
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Packages",
+                packageFamilyName,
+                "LocalCache",
+                "Roaming",
+                "TabNest",
+                "settings.json");
+        }
+    }
+
+    /// <summary>
     /// WinAppDriver が起動しているか(待ち受けポートへの TCP 接続で判定)。
     /// 未起動の環境では UI テストをスキップするために使う。
     /// </summary>
