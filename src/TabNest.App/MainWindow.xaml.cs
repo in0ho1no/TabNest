@@ -14,11 +14,15 @@ public sealed partial class MainWindow : Window
 {
     private readonly SettingsService _settingsService = new();
 
-    public MainViewModel ViewModel { get; } = new(new FileSystemService(), new ShellFileLauncher());
+    public MainViewModel ViewModel { get; }
 
     public MainWindow()
     {
         InitializeComponent();
+
+        // 起動時に settings.json から前回セッションを復元する(無い・壊れている場合は初期起動状態)
+        ViewModel = new MainViewModel(
+            new FileSystemService(), new ShellFileLauncher(), _settingsService.Load());
 
         Title = ViewModel.Title;
         AppTitleBar.Title = ViewModel.Title;
@@ -28,7 +32,15 @@ public sealed partial class MainWindow : Window
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
 
-        // 初期表示フォルダ(%UserProfile%)を読み込んでからメインページへ遷移する。
+        // 前回終了時のウィンドウサイズ(物理px)を復元する。保存値が無ければ既定サイズで起動する
+        if (ViewModel.RestoredWindowWidth > 0 && ViewModel.RestoredWindowHeight > 0)
+        {
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(
+                (int)ViewModel.RestoredWindowWidth,
+                (int)ViewModel.RestoredWindowHeight));
+        }
+
+        // 初期表示フォルダ(前回のアクティブタブ、初回は %UserProfile%)を読み込んでから遷移する。
         ViewModel.LoadInitialFolder();
         RootFrame.Navigate(typeof(MainPage), ViewModel);
 

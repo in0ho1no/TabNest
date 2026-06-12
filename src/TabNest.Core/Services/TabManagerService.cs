@@ -43,6 +43,73 @@ public sealed class TabManagerService
         => ActiveTabId is null ? null : _groups.SelectMany(g => g.Tabs).FirstOrDefault(t => t.Id == ActiveTabId);
 
     /// <summary>
+    /// 保存済みセッション(settings.json)からタブ状態を復元する(SPEC「設定保存」)。
+    /// グループ数・グループ毎タブ数・閉じたタブ履歴は上限を超える分を切り捨てる
+    /// (グループ・タブは先頭優先、閉じたタブ履歴は新しいもの優先)。
+    /// Id が空の要素には新しい Id を採番する。アクティブタブは保存値が実在しない場合、
+    /// アクティブグループ(無効なら先頭グループ)の SelectedTabId → 先頭タブの順でフォールバックする。
+    /// 復元できるグループが1つも無い場合は何も変更せず false を返す
+    /// (呼び出し側は初期起動状態で開始する)。
+    /// </summary>
+    public bool RestoreSession(AppSettings settings)
+    {
+        var groups = settings.TabGroups.Take(MaxGroups).ToList();
+        if (groups.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var group in groups)
+        {
+            if (string.IsNullOrEmpty(group.Id))
+            {
+                group.Id = Guid.NewGuid().ToString();
+            }
+
+            if (group.Tabs.Count > MaxTabsPerGroup)
+            {
+                group.Tabs.RemoveRange(MaxTabsPerGroup, group.Tabs.Count - MaxTabsPerGroup);
+            }
+
+            foreach (var tab in group.Tabs)
+            {
+                if (string.IsNullOrEmpty(tab.Id))
+                {
+                    tab.Id = Guid.NewGuid().ToString();
+                }
+            }
+
+            // SelectedTabId がグループ内に実在しなければ先頭タブに補正する
+            if (group.Tabs.All(t => t.Id != group.SelectedTabId))
+            {
+                group.SelectedTabId = group.Tabs.FirstOrDefault()?.Id;
+            }
+        }
+
+        _groups.Clear();
+        _groups.AddRange(groups);
+
+        _closedTabs.Clear();
+        _closedTabs.AddRange(settings.ClosedTabs.TakeLast(MaxClosedTabs));
+
+        // アクティブの決定: 保存されたアクティブタブ → アクティブグループの選択タブ → 先頭グループの選択タブ
+        if (settings.ActiveTabId is string savedTabId && SetActiveTab(savedTabId))
+        {
+            return true;
+        }
+
+        var activeGroup = FindGroup(settings.ActiveGroupId) ?? _groups[0];
+        ActiveGroupId = activeGroup.Id;
+        ActiveTabId = null;
+        if (activeGroup.SelectedTabId is string selectedTabId)
+        {
+            SetActiveTab(selectedTabId);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// グループを末尾に追加する。最初のグループは自動的にアクティブになる。
     /// 上限(5)到達時は追加せず失敗結果を返す。
     /// </summary>

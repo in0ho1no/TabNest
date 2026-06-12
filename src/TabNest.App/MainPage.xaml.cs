@@ -34,6 +34,8 @@ public sealed partial class MainPage : Page
         if (e.Parameter is MainViewModel viewModel)
         {
             ViewModel = viewModel;
+            // 前回終了時の左カラム幅を復元する(既定 220・最小 150 は VM 側で補正済み)
+            LeftPaneColumn.Width = new Microsoft.UI.Xaml.GridLength(viewModel.LeftPaneWidth);
             Bindings.Update();
         }
     }
