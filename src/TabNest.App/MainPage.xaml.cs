@@ -68,7 +68,11 @@ public sealed partial class MainPage : Page
 
     // ---- ファイル一覧: 列ソートと列幅自動調整(Task 4-5) ----
 
-    /// <summary>各列の現在幅(px)。ヘッダー行と ItemTemplate の Grid を同じ幅に保つための共有状態。</summary>
+    /// <summary>
+    /// 各列の現在幅(px)。ヘッダー行と ItemTemplate の Grid を同じ幅に保つための共有状態。
+    /// 初期値は MainPage.xaml のヘッダー(FileListHeader)・行テンプレートの
+    /// ColumnDefinitions と一致させること(3箇所同期必須)。
+    /// </summary>
     private readonly double[] _columnWidths = [28, 292, 140, 150, 90];
 
     private void NameColumnHeader_Click(object sender, RoutedEventArgs e)
