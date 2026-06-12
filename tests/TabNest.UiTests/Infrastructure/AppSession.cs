@@ -22,19 +22,21 @@ public sealed class AppSession : IDisposable
     public WindowsDriver<WindowsElement> Driver { get; }
 
     /// <summary>
-    /// メインウィンドウのハンドル。GetWindowRect による正確なウィンドウサイズ検証に使う
+    /// メインウィンドウのハンドル(起動時に取得した値を保持)。
+    /// GetWindowRect による正確なウィンドウサイズ検証に使う
     /// (WinAppDriver の Window.Size は見えないリサイズ枠を除いた値を返すため、
     /// AppWindow.Resize の物理ピクセルと一致しない)。
     /// </summary>
-    public IntPtr MainWindowHandle => _appProcess.MainWindowHandle;
+    public IntPtr MainWindowHandle { get; }
 
     public AppSession()
     {
         _appProcess = LaunchAppAndWaitForWindow();
+        MainWindowHandle = _appProcess.MainWindowHandle;
 
         var options = new AppiumOptions();
         options.AddAdditionalCapability(
-            "appTopLevelWindow", _appProcess.MainWindowHandle.ToInt64().ToString("x"));
+            "appTopLevelWindow", MainWindowHandle.ToInt64().ToString("x"));
         options.AddAdditionalCapability("deviceName", "WindowsPC");
         Driver = new WindowsDriver<WindowsElement>(
             new Uri(UiTestEnvironment.WinAppDriverUrl), options, TimeSpan.FromSeconds(60));

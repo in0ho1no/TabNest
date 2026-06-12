@@ -17,7 +17,9 @@ public class LaunchTests
         // MainWindow の検出(タイトルで識別)
         Assert.Equal("TabNest", session.Driver.Title);
 
-        // 初期表示の検証: グループ「作業1」とタブ1個(%UserProfile%)
+        // 初期表示の検証: グループ「作業1」とタブ1個(%UserProfile%)。
+        // GroupNameText / FolderTabItem は複数存在しうる AutomationId だが、
+        // settings.json を削除した初期起動状態ではグループ1段・タブ1個のため先頭一致で検証できる
         var groupName = session.Driver.FindElementByAccessibilityId("GroupNameText");
         Assert.Equal("作業1", groupName.Text);
 
