@@ -311,7 +311,15 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>お気に入りを削除する。存在しない場合は false。</summary>
     public bool RemoveFavorite(string favoriteId)
-        => _favorites.RemoveFavorite(favoriteId);
+    {
+        if (!_favorites.RemoveFavorite(favoriteId))
+        {
+            return false;
+        }
+
+        OperationError = null;
+        return true;
+    }
 
     /// <summary>
     /// 最後に閉じたタブを復元する(Ctrl+Shift+T)。
