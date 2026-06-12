@@ -117,7 +117,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!--  左カラム: 上=お気に入り(Task 4-6 で実装)、下=フォルダツリー  -->
+            <!--  左カラム: 上=お気に入り、下=フォルダツリー(独立した2領域)  -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -131,10 +131,44 @@
                     <TextBlock
                         Style="{ThemeResource CaptionTextBlockStyle}"
                         Text="★ お気に入り" />
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="(Task 4-6 で実装予定)" />
+                    <!--  保存順で表示し、収まらない場合は縦スクロール(SPEC「お気に入り」)  -->
+                    <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                        <ListView
+                            x:Name="FavoritesListView"
+                            AutomationProperties.AutomationId="FavoritesListView"
+                            IsItemClickEnabled="True"
+                            ItemClick="FavoritesListView_ItemClick"
+                            ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
+                            ScrollViewer.VerticalScrollMode="Disabled"
+                            SelectionMode="None">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="MinHeight" Value="32" />
+                                    <Setter Property="Padding" Value="8,0" />
+                                    <!--  Grid 等は AutomationPeer を持たないため、UIA から見える項目側に付与する  -->
+                                    <Setter Property="AutomationProperties.AutomationId" Value="FavoriteItem" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FavoriteItemViewModel">
+                                    <Grid Background="Transparent">
+                                        <Grid.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuFlyoutItem
+                                                    AutomationProperties.AutomationId="DeleteFavoriteMenuItem"
+                                                    Click="DeleteFavorite_Click"
+                                                    Text="削除" />
+                                            </MenuFlyout>
+                                        </Grid.ContextFlyout>
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            Text="{x:Bind Name}"
+                                            TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </ScrollViewer>
                 </StackPanel>
                 <TreeView
                     x:Name="FolderTreeView"

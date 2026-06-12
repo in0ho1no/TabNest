@@ -107,6 +107,79 @@ public class FavoritesViewModelTests
     }
 
     [Fact]
+    public void お気に入り一覧は保存順に表示名どおり並ぶ()
+    {
+        var vm = CreateViewModel();
+        var groupId = vm.Groups[0].Id;
+        Assert.True(vm.SaveGroupAsFavorite(groupId));
+        Assert.True(vm.SaveGroupAsFavorite(groupId)); // 同名 → 連番付き
+        Assert.True(vm.AddGroupWithDefaultTab());
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[1].Id));
+
+        Assert.Equal(["作業1", "作業1 (2)", "作業2"], vm.Favorites.Select(f => f.Name).ToArray());
+    }
+
+    [Fact]
+    public void セッション復元後もお気に入りの並びと表示名が維持される()
+    {
+        var session = new AppSettings
+        {
+            SavedGroups =
+            [
+                new SavedTabGroup { Id = "f1", Name = "作業B", Paths = [@"C:\b"] },
+                new SavedTabGroup { Id = "f2", Name = "作業A", Paths = [@"C:\a"] },
+            ],
+        };
+
+        var vm = CreateViewModel(session: session);
+
+        // 並び替えはせず保存順(リスト順)のまま表示する
+        Assert.Equal(["作業B", "作業A"], vm.Favorites.Select(f => f.Name).ToArray());
+        Assert.Equal(["f1", "f2"], vm.Favorites.Select(f => f.Id).ToArray());
+    }
+
+    [Fact]
+    public void 削除するとFavoritesコレクションからも消える()
+    {
+        var vm = CreateViewModel();
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[0].Id));
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[0].Id));
+        var first = vm.Favorites[0];
+
+        Assert.True(vm.RemoveFavorite(first.Id));
+
+        var remaining = Assert.Single(vm.Favorites);
+        Assert.Equal("作業1 (2)", remaining.Name);
+    }
+
+    [Fact]
+    public void 一覧の項目からお気に入りを開くと新しい段が生成される()
+    {
+        var vm = CreateViewModel();
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[0].Id));
+        var item = Assert.Single(vm.Favorites);
+
+        var ok = vm.OpenFavorite(item.Id);
+
+        Assert.True(ok);
+        Assert.Equal(2, vm.Groups.Count);
+        Assert.Equal(item.Name, vm.Groups[1].Name);
+        Assert.Equal(item.Paths, vm.Groups[1].Tabs.Select(t => t.Path).ToArray());
+    }
+
+    [Fact]
+    public void グループVMのSaveAsFavoriteで右クリック対象のグループが保存される()
+    {
+        var vm = CreateViewModel();
+        Assert.True(vm.AddGroupWithDefaultTab()); // 作業2 がアクティブになる
+
+        vm.Groups[0].SaveAsFavorite(); // 非アクティブの作業1 を右クリック保存
+
+        var favorite = Assert.Single(vm.Favorites);
+        Assert.Equal("作業1", favorite.Name);
+    }
+
+    [Fact]
     public void タブ状態が復元できなくてもお気に入りは復元される()
     {
         // TabGroups が空(初期起動状態へフォールバック)でも SavedGroups は保持する

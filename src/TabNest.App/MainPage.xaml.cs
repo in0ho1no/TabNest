@@ -66,6 +66,24 @@ public sealed partial class MainPage : Page
         }
     }
 
+    /// <summary>お気に入りクリック: そのタブグループを新しい段として開く(5段上限は InfoBar 表示)。</summary>
+    private void FavoritesListView_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is FavoriteItemViewModel favorite)
+        {
+            ViewModel?.OpenFavorite(favorite.Id);
+        }
+    }
+
+    /// <summary>お気に入りの右クリックメニュー「削除」。</summary>
+    private void DeleteFavorite_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FavoriteItemViewModel favorite })
+        {
+            ViewModel?.RemoveFavorite(favorite.Id);
+        }
+    }
+
     // ---- ファイル一覧: 列ソートと列幅自動調整(Task 4-5) ----
 
     /// <summary>
