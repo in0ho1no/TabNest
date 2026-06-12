@@ -64,7 +64,7 @@ public sealed class SettingsService : ISettingsService
             File.WriteAllText(_settingsFilePath, json);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             return false;
         }
