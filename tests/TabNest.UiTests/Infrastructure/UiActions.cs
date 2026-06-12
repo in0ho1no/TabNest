@@ -79,21 +79,76 @@ public static class UiActions
     /// </summary>
     public static void MiddleClick(AppSession session, IWebElement element)
     {
+        MoveCursorToElementCenter(session, element);
+        NativeMethods.mouse_event(NativeMethods.MouseEventMiddleDown, 0, 0, 0, IntPtr.Zero);
+        NativeMethods.mouse_event(NativeMethods.MouseEventMiddleUp, 0, 0, 0, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// 要素の中心をダブルクリックする(Win32 物理クリック)。
+    /// WinAppDriver の座標クリックは間欠的に空振りするため、座標変換済みの物理入力で行う。
+    /// </summary>
+    public static void DoubleClick(AppSession session, IWebElement element)
+    {
+        MoveCursorToElementCenter(session, element);
+        for (var i = 0; i < 2; i++)
+        {
+            NativeMethods.mouse_event(NativeMethods.MouseEventLeftDown, 0, 0, 0, IntPtr.Zero);
+            NativeMethods.mouse_event(NativeMethods.MouseEventLeftUp, 0, 0, 0, IntPtr.Zero);
+            Thread.Sleep(80);
+        }
+    }
+
+    /// <summary>要素の中心を右クリックする(Win32 物理クリック)。</summary>
+    public static void RightClick(AppSession session, IWebElement element)
+    {
+        MoveCursorToElementCenter(session, element);
+        NativeMethods.mouse_event(NativeMethods.MouseEventRightDown, 0, 0, 0, IntPtr.Zero);
+        NativeMethods.mouse_event(NativeMethods.MouseEventRightUp, 0, 0, 0, IntPtr.Zero);
+    }
+
+    /// <summary>
+    /// 右クリックで MenuFlyout を開き、先頭のメニュー項目をキーボードで実行する。
+    /// MenuFlyout は別ウィンドウのポップアップとして表示され、アタッチしたセッションの
+    /// 要素ツリーには現れないため、↓ → Enter のキーボード操作で選択する。
+    /// 注意: 「メニューの先頭項目が目的の項目」であることを前提とする。
+    /// メニュー項目を追加・並び替えする場合は、このヘルパーの利用箇所を必ず見直すこと。
+    /// </summary>
+    public static void InvokeFirstContextMenuItem(AppSession session, IWebElement element)
+    {
+        RightClick(session, element);
+        Thread.Sleep(500); // フライアウトの表示待ち
+        new OpenQA.Selenium.Interactions.Actions(session.Driver)
+            .SendKeys(Keys.ArrowDown + Keys.Enter)
+            .Perform();
+    }
+
+    private static void MoveCursorToElementCenter(AppSession session, IWebElement element)
+    {
         NativeMethods.SetForegroundWindow(session.MainWindowHandle);
         Thread.Sleep(200);
-
         var visible = NativeMethods.GetVisibleWindowRect(session.MainWindowHandle);
         var centerX = visible.Left + element.Location.X + element.Size.Width / 2;
         var centerY = visible.Top + element.Location.Y + element.Size.Height / 2;
         NativeMethods.SetCursorPos(centerX, centerY);
         Thread.Sleep(100);
-        NativeMethods.mouse_event(NativeMethods.MouseEventMiddleDown, 0, 0, 0, IntPtr.Zero);
-        NativeMethods.mouse_event(NativeMethods.MouseEventMiddleUp, 0, 0, 0, IntPtr.Zero);
     }
 
     /// <summary>FolderTabItem(タブ)の一覧を取得する(表示順)。</summary>
     public static IReadOnlyList<WindowsElement> FindTabs(AppSession session)
         => session.Driver.FindElementsByAccessibilityId("FolderTabItem").ToList();
+
+    /// <summary>TabGroupRow(タブグループの段)の一覧を取得する(表示順)。</summary>
+    public static IReadOnlyList<WindowsElement> FindGroupRows(AppSession session)
+        => session.Driver.FindElementsByAccessibilityId("TabGroupRow").ToList();
+
+    /// <summary>グループ段数が期待値になるまで待って検証する。</summary>
+    public static void WaitForGroupCount(AppSession session, int expected)
+    {
+        Assert.True(
+            WaitUntil(() => FindGroupRows(session).Count == expected),
+            $"グループ段数が {expected} になりませんでした(実際: {FindGroupRows(session).Count})。");
+    }
 
     /// <summary>タブ数が期待値になるまで待って検証する。</summary>
     public static void WaitForTabCount(AppSession session, int expected)
