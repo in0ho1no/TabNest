@@ -89,6 +89,10 @@ public class GroupOperationTests
             // ダブルクリックでインライン編集を開始し、新しい名前(JIS 配列の影響を受けない ASCII)を入力する
             UiActions.DoubleClick(session, groupName);
             var editBox = session.Driver.FindElementByAccessibilityId("GroupNameEditBox");
+            // 編集ボックスの可視化はディスパッチャ経由の非同期のため、表示を明示的に待つ
+            Assert.True(
+                UiActions.WaitUntil(() => editBox.Displayed),
+                "グループ名の編集ボックスが表示されませんでした。");
             editBox.SendKeys(Keys.Control + "a" + Keys.Control);
             editBox.SendKeys("WorkA");
             editBox.SendKeys(Keys.Enter);

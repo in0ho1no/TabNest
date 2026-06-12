@@ -111,6 +111,8 @@ public static class UiActions
     /// 右クリックで MenuFlyout を開き、先頭のメニュー項目をキーボードで実行する。
     /// MenuFlyout は別ウィンドウのポップアップとして表示され、アタッチしたセッションの
     /// 要素ツリーには現れないため、↓ → Enter のキーボード操作で選択する。
+    /// 注意: 「メニューの先頭項目が目的の項目」であることを前提とする。
+    /// メニュー項目を追加・並び替えする場合は、このヘルパーの利用箇所を必ず見直すこと。
     /// </summary>
     public static void InvokeFirstContextMenuItem(AppSession session, IWebElement element)
     {
