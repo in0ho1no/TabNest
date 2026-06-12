@@ -22,6 +22,15 @@ public enum TabOperationError
 
     /// <summary>復元できる閉じたタブの履歴がない。</summary>
     NoClosedTab,
+
+    /// <summary>お気に入りの件数が上限(50)に達している。</summary>
+    FavoriteLimitReached,
+
+    /// <summary>タブが0個のグループはお気に入りに保存できない。</summary>
+    EmptyGroupNotSavable,
+
+    /// <summary>指定されたお気に入りが存在しない。</summary>
+    FavoriteNotFound,
 }
 
 /// <summary>

@@ -11,6 +11,7 @@ namespace TabNest.ViewModels;
 public sealed class MainViewModel : ViewModelBase
 {
     private readonly TabManagerService _tabManager = new();
+    private readonly FavoritesService _favorites = new();
     private string _title = "TabNest";
     private string? _operationError;
 
@@ -39,6 +40,13 @@ public sealed class MainViewModel : ViewModelBase
         LeftPaneWidth = Math.Max(
             MinLeftPaneWidth,
             NormalizeLength(session?.LeftPaneWidth ?? 0, fallback: DefaultLeftPaneWidth));
+
+        // お気に入りはタブ状態の復元成否と独立して復元する
+        // (タブ状態が無く初期起動状態になる場合でも、保存済みのお気に入りは保持する)
+        if (session is not null)
+        {
+            _favorites.RestoreSavedGroups(session.SavedGroups);
+        }
 
         if (session is not null && _tabManager.RestoreSession(session))
         {
@@ -234,6 +242,77 @@ public sealed class MainViewModel : ViewModelBase
         return $"作業{max + 1}";
     }
 
+    /// <summary>お気に入り(保存済みタブグループ)一覧。保存順(SavedAt 昇順)。</summary>
+    public IReadOnlyList<SavedTabGroup> Favorites => _favorites.SavedGroups;
+
+    /// <summary>
+    /// 指定されたグループ(右クリック対象。アクティブグループとは限らない)を
+    /// お気に入りとして保存する。名前はグループ名をそのまま使い、同名時は連番を付ける。
+    /// タブ0個・上限50件到達時は保存せずエラーを表示する。
+    /// </summary>
+    public bool SaveGroupAsFavorite(string groupId)
+    {
+        var group = _tabManager.Groups.FirstOrDefault(g => g.Id == groupId);
+        if (group is null)
+        {
+            OperationError = "指定されたグループが見つかりません。";
+            return false;
+        }
+
+        var result = _favorites.SaveFavorite(group);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
+    /// お気に入りを新しい段として開く。開いたグループの名前はお気に入りの名前を引き継ぎ、
+    /// 先頭のタブをアクティブにしてそのフォルダを表示する(存在しないパスはエラー表示で開く)。
+    /// 5段上限到達時は開かずエラーを表示する。グループ名編集中は何も実行しない。
+    /// </summary>
+    public bool OpenFavorite(string favoriteId)
+    {
+        if (IsRenameInProgress)
+        {
+            return false;
+        }
+
+        var favorite = _favorites.FindFavorite(favoriteId);
+        if (favorite is null)
+        {
+            OperationError = "指定されたお気に入りが見つかりません。";
+            return false;
+        }
+
+        var result = _tabManager.OpenSavedGroup(favorite, GetTabTitle);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        var groupVm = new TabGroupViewModel(result.Value!, tab => SelectTab(tab), tab => CloseTab(tab));
+        Groups.Add(groupVm);
+        ApplyActiveStates();
+        if (groupVm.Tabs.FirstOrDefault() is { } firstTab)
+        {
+            Folder.AttachHistory(firstTab.History);
+            Folder.ShowFolder(firstTab.Path);
+        }
+
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>お気に入りを削除する。存在しない場合は false。</summary>
+    public bool RemoveFavorite(string favoriteId)
+        => _favorites.RemoveFavorite(favoriteId);
+
     /// <summary>
     /// 最後に閉じたタブを復元する(Ctrl+Shift+T)。
     /// グループ名編集中は何も実行しない(編集状態を維持する)。
@@ -305,8 +384,8 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>
     /// アプリ終了時のセッション保存用に、現在のタブ状態(タブグループ・アクティブグループ/タブ・
-    /// 閉じたタブ履歴)とウィンドウサイズ・左カラム幅から AppSettings を生成する(SPEC「設定保存」)。
-    /// タブごとの戻る・進む履歴は保存対象外。SavedGroups(お気に入り)は Task 4-4 で対応する。
+    /// 閉じたタブ履歴・お気に入り)とウィンドウサイズ・左カラム幅から AppSettings を生成する
+    /// (SPEC「設定保存」)。タブごとの戻る・進む履歴は保存対象外。
     /// ウィンドウサイズ・左カラム幅は WinUI 依存のため View 側で取得して渡す。
     /// </summary>
     public AppSettings CreateAppSettings(double windowWidth, double windowHeight, double leftPaneWidth)
@@ -314,6 +393,7 @@ public sealed class MainViewModel : ViewModelBase
         {
             TabGroups = _tabManager.Groups.ToList(),
             ClosedTabs = _tabManager.ClosedTabs.ToList(),
+            SavedGroups = _favorites.SavedGroups.ToList(),
             ActiveGroupId = _tabManager.ActiveGroupId,
             ActiveTabId = _tabManager.ActiveTabId,
             WindowWidth = windowWidth,
