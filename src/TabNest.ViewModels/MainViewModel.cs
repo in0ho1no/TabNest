@@ -14,7 +14,14 @@ public sealed class MainViewModel : ViewModelBase
     private string _title = "TabNest";
     private string? _operationError;
 
-    public MainViewModel(IFileSystemService fileSystemService, IFileLauncher fileLauncher)
+    /// <param name="session">
+    /// 復元するセッション(起動時に settings.json から読み込んだ AppSettings)。
+    /// null または復元できる内容が無い場合は SPEC「初期起動状態」で開始する。
+    /// </param>
+    public MainViewModel(
+        IFileSystemService fileSystemService,
+        IFileLauncher fileLauncher,
+        AppSettings? session = null)
     {
         Folder = new FolderViewModel(fileSystemService, fileLauncher);
         Tree = new FolderTreeViewModel(fileSystemService, path => Folder.LoadFolder(path));
@@ -26,8 +33,52 @@ public sealed class MainViewModel : ViewModelBase
         };
         AddTabCommand = new RelayCommand(_ => AddTabToActiveGroup());
         AddGroupCommand = new RelayCommand(_ => AddGroupWithDefaultTab());
-        InitializeDefaultTabs();
+
+        RestoredWindowWidth = NormalizeLength(session?.WindowWidth ?? 0, fallback: 0);
+        RestoredWindowHeight = NormalizeLength(session?.WindowHeight ?? 0, fallback: 0);
+        LeftPaneWidth = Math.Max(
+            MinLeftPaneWidth,
+            NormalizeLength(session?.LeftPaneWidth ?? 0, fallback: DefaultLeftPaneWidth));
+
+        if (session is not null && _tabManager.RestoreSession(session))
+        {
+            foreach (var group in _tabManager.Groups)
+            {
+                Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab), tab => CloseTab(tab)));
+            }
+
+            ApplyActiveStates();
+        }
+        else
+        {
+            InitializeDefaultTabs();
+        }
     }
+
+    /// <summary>左カラム幅の既定値(px)。SPEC「画面レイアウト」準拠。</summary>
+    public const double DefaultLeftPaneWidth = 220;
+
+    /// <summary>左カラム幅の最小値(px)。SPEC「画面レイアウト」準拠。</summary>
+    public const double MinLeftPaneWidth = 150;
+
+    /// <summary>
+    /// 復元するウィンドウ幅(物理px)。0 は保存値なし・不正値で、復元しない(既定サイズで起動)。
+    /// </summary>
+    public double RestoredWindowWidth { get; }
+
+    /// <summary>
+    /// 復元するウィンドウ高さ(物理px)。0 は保存値なし・不正値で、復元しない(既定サイズで起動)。
+    /// </summary>
+    public double RestoredWindowHeight { get; }
+
+    /// <summary>
+    /// 左カラムの幅(DIP)。保存値が無い・不正な場合は既定 220、最小 150 に補正される。
+    /// </summary>
+    public double LeftPaneWidth { get; }
+
+    /// <summary>保存値が正の有限値ならそのまま、それ以外は fallback を返す。</summary>
+    private static double NormalizeLength(double value, double fallback)
+        => double.IsFinite(value) && value > 0 ? value : fallback;
 
     /// <summary>ウィンドウタイトル。初期値は "TabNest"。</summary>
     public string Title
@@ -45,9 +96,17 @@ public sealed class MainViewModel : ViewModelBase
     /// <summary>タブグループ(表示順)。</summary>
     public ObservableCollection<TabGroupViewModel> Groups { get; } = [];
 
-    /// <summary>初期タブを選択して初期表示フォルダ(%UserProfile%)を読み込む。</summary>
+    /// <summary>
+    /// 起動時の初期表示としてアクティブタブを選択し、そのフォルダを読み込む
+    /// (初期起動状態では %UserProfile%、セッション復元時は前回のアクティブタブ)。
+    /// アクティブタブが無い場合は先頭グループの先頭タブにフォールバックする。
+    /// </summary>
     public bool LoadInitialFolder()
-        => Groups.Count > 0 && Groups[0].Tabs.Count > 0 && SelectTab(Groups[0].Tabs[0]);
+    {
+        var tab = _tabManager.ActiveTabId is string activeId ? FindTabViewModel(activeId) : null;
+        tab ??= Groups.SelectMany(g => g.Tabs).FirstOrDefault();
+        return tab is not null && SelectTab(tab);
+    }
 
     private static string UserProfilePath
         => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
