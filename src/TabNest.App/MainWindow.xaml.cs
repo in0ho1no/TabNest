@@ -38,6 +38,9 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        // 保存単位: WindowWidth/Height は物理ピクセル(AppWindow.Size)、
+        // LeftPaneWidth は DIP(ActualWidth)。復元(Task 4-3)も同じ単位で行うこと
+        // (ウィンドウは AppWindow.Resize、左カラムは ColumnDefinition.Width)。
         // 左カラム幅はレイアウト未確定などで取得できない場合があるため、既定値にフォールバックする
         var leftPaneWidth = (RootFrame.Content as MainPage)?.LeftPaneWidth ?? 0;
         var settings = ViewModel.CreateAppSettings(
