@@ -13,6 +13,8 @@ public sealed class FolderViewModel : ViewModelBase
     private string _currentPath = "";
     private string _addressBarText = "";
     private string? _errorMessage;
+    private FileSortColumn _sortColumn = FileSortColumn.Name;
+    private bool _sortDescending;
 
     public FolderViewModel(IFileSystemService fileSystemService, IFileLauncher fileLauncher)
     {
@@ -72,6 +74,89 @@ public sealed class FolderViewModel : ViewModelBase
     /// <summary>上の階層が存在するか(ドライブルートでは false)。</summary>
     public bool CanNavigateUp
         => !string.IsNullOrEmpty(CurrentPath) && Path.GetDirectoryName(CurrentPath) is not null;
+
+    /// <summary>現在のソート対象列。初期値は名前(SPEC「初期ソート」)。</summary>
+    public FileSortColumn SortColumn
+    {
+        get => _sortColumn;
+        private set => SetProperty(ref _sortColumn, value);
+    }
+
+    /// <summary>降順ソートかどうか。初期値は昇順。</summary>
+    public bool SortDescending
+    {
+        get => _sortDescending;
+        private set => SetProperty(ref _sortDescending, value);
+    }
+
+    /// <summary>
+    /// タイトル行クリックによるソート切り替え。同じ列なら昇順・降順を反転し、
+    /// 別の列なら その列の昇順に切り替えて、現在の一覧を並べ替える。
+    /// フォルダを先頭に表示する方針(SPEC「初期ソート」)はどの列のソートでも維持する。
+    /// </summary>
+    public void ToggleSort(FileSortColumn column)
+    {
+        if (SortColumn == column)
+        {
+            SortDescending = !SortDescending;
+        }
+        else
+        {
+            SortColumn = column;
+            SortDescending = false;
+        }
+
+        var sorted = ApplySort(Items.ToList());
+        Items.Clear();
+        foreach (var item in sorted)
+        {
+            Items.Add(item);
+        }
+    }
+
+    /// <summary>
+    /// 現在のソート設定で並べ替える。フォルダ先頭は常に維持し、
+    /// 同値の場合は名前昇順で安定させる。
+    /// </summary>
+    private List<FileItemViewModel> ApplySort(IReadOnlyCollection<FileItemViewModel> items)
+    {
+        var grouped = items.OrderByDescending(i => i.IsDirectory);
+        var nameComparer = StringComparer.CurrentCultureIgnoreCase;
+
+        IOrderedEnumerable<FileItemViewModel> sorted = (SortColumn, SortDescending) switch
+        {
+            (FileSortColumn.Name, false) => grouped.ThenBy(i => i.Name, nameComparer),
+            (FileSortColumn.Name, true) => grouped.ThenByDescending(i => i.Name, nameComparer),
+            (FileSortColumn.Type, false) => grouped.ThenBy(i => i.TypeText, nameComparer),
+            (FileSortColumn.Type, true) => grouped.ThenByDescending(i => i.TypeText, nameComparer),
+            (FileSortColumn.LastModified, false) => grouped.ThenBy(i => i.LastModifiedAt),
+            (FileSortColumn.LastModified, true) => grouped.ThenByDescending(i => i.LastModifiedAt),
+            // フォルダ(サイズ null)は -1 として比較する(フォルダ先頭の維持により実質フォルダ間は名前順)
+            (FileSortColumn.Size, false) => grouped.ThenBy(i => i.SizeInBytes ?? -1),
+            (FileSortColumn.Size, true) => grouped.ThenByDescending(i => i.SizeInBytes ?? -1),
+            _ => grouped.ThenBy(i => i.Name, nameComparer),
+        };
+
+        if (SortColumn != FileSortColumn.Name)
+        {
+            sorted = sorted.ThenBy(i => i.Name, nameComparer);
+        }
+
+        return sorted.ToList();
+    }
+
+    /// <summary>
+    /// 列幅自動調整(タイトル列の区切りダブルクリック)の幅を範囲内に収める。
+    /// 最小 40px、最大「ウィンドウ幅 − 他列の合計幅 − 20px」(SPEC「ファイル一覧」)。
+    /// 最大が最小を下回る場合は最小 40px を優先する。
+    /// </summary>
+    public static double ClampAutoColumnWidth(
+        double desiredWidth, double windowWidth, double otherColumnsTotalWidth)
+    {
+        const double minWidth = 40;
+        var maxWidth = Math.Max(minWidth, windowWidth - otherColumnsTotalWidth - 20);
+        return Math.Clamp(desiredWidth, minWidth, maxWidth);
+    }
 
     /// <summary>
     /// フォルダの読み込みに成功したときに移動先パスを通知する。
@@ -198,10 +283,7 @@ public sealed class FolderViewModel : ViewModelBase
             return false;
         }
 
-        var sorted = result.Entries
-            .OrderByDescending(e => e.IsDirectory)
-            .ThenBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(e => new FileItemViewModel(e));
+        var sorted = ApplySort(result.Entries.Select(e => new FileItemViewModel(e)).ToList());
 
         Items.Clear();
         foreach (var item in sorted)
@@ -238,10 +320,19 @@ public sealed class FolderViewModel : ViewModelBase
         return parent is not null && LoadFolder(parent);
     }
 
-    /// <summary>アドレスバーの入力パスへ移動する。失敗時は現在のフォルダに留まる。</summary>
+    /// <summary>
+    /// アドレスバーの入力パスへ移動する。失敗時は現在のフォルダに留まる。
+    /// 「"C:\temp"」のようにダブルクォートで括られたパスは外側のダブルクォートを除去して移動する
+    /// (エクスプローラーの「パスのコピー」貼り付けを想定)。
+    /// </summary>
     public bool NavigateToAddress()
     {
         var path = AddressBarText.Trim();
+        if (path.Length >= 2 && path.StartsWith('"') && path.EndsWith('"'))
+        {
+            path = path[1..^1].Trim();
+        }
+
         if (path.Length == 0)
         {
             ErrorMessage = "パスが入力されていません。";
