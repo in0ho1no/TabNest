@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -19,6 +20,14 @@ public sealed partial class TabGroupRow : UserControl
     {
         InitializeComponent();
     }
+
+    /// <summary>
+    /// UserControl は既定で AutomationPeer を生成せず UIA ツリーに現れないため、
+    /// AutomationId="TabGroupRow" を UI テスト(Inspect / WinAppDriver)から
+    /// 検索できるように汎用ピアを生成する(SPEC Task 5-2)。
+    /// </summary>
+    protected override AutomationPeer OnCreateAutomationPeer()
+        => new FrameworkElementAutomationPeer(this);
 
     /// <summary>x:Bind 用: true なら Visible。</summary>
     public static Visibility VisibleWhen(bool value)
