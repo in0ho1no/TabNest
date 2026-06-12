@@ -21,6 +21,13 @@ public sealed class AppSession : IDisposable
     /// <summary>アプリ操作用の Appium ドライバ。</summary>
     public WindowsDriver<WindowsElement> Driver { get; }
 
+    /// <summary>
+    /// メインウィンドウのハンドル。GetWindowRect による正確なウィンドウサイズ検証に使う
+    /// (WinAppDriver の Window.Size は見えないリサイズ枠を除いた値を返すため、
+    /// AppWindow.Resize の物理ピクセルと一致しない)。
+    /// </summary>
+    public IntPtr MainWindowHandle => _appProcess.MainWindowHandle;
+
     public AppSession()
     {
         _appProcess = LaunchAppAndWaitForWindow();
