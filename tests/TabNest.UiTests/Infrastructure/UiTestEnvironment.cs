@@ -36,6 +36,13 @@ public static class UiTestEnvironment
     public const string AppProcessName = "TabNest.App";
 
     /// <summary>
+    /// ナビゲーションテスト用サンドボックスフォルダ(ビルド出力にコピーされた TestFixtures)。
+    /// GUI テストが参照する実フォルダはこの配下のみとする(SPEC サンドボックスポリシー)。
+    /// </summary>
+    public static string SampleFolderPath
+        => Path.Combine(AppContext.BaseDirectory, "TestFixtures", "SampleFolder");
+
+    /// <summary>
     /// テスト対象アプリが実際に読み書きする settings.json のフルパス。
     /// パッケージアプリのため %AppData% への書き込みは
     /// %LocalAppData%\Packages\&lt;PFN&gt;\LocalCache\Roaming に仮想化される。

@@ -29,6 +29,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--  ナビゲーションテスト用サンドボックス(SPEC: GUI テストの実フォルダ参照は TestFixtures/ 以下のみ)  -->
+    <Content Include="TestFixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!--
     注意: TabNest.App への ProjectReference を追加してはならない(AGENTS.md 恒久禁止)。
     UI テストは WinAppDriver 経由でインストール済みパッケージ(AUMID)を起動して操作する。
