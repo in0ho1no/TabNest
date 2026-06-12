@@ -83,6 +83,12 @@ public sealed partial class TabGroupRow : UserControl
         ViewModel?.CommitRename();
     }
 
+    private void SaveToFavorites_Click(object sender, RoutedEventArgs e)
+    {
+        // 右クリックされたこのグループ(アクティブグループとは限らない)を保存する
+        ViewModel?.SaveAsFavorite();
+    }
+
     private void TabItem_Tapped(object sender, TappedRoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: FolderTabViewModel tab })

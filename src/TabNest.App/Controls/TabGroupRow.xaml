@@ -17,11 +17,19 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!--  グループ名(ダブルクリックでインライン編集)  -->
+        <!--  グループ名(ダブルクリックでインライン編集、右クリックでお気に入りに保存)  -->
         <Grid
             Grid.Column="0"
             MinWidth="80"
             VerticalAlignment="Center">
+            <Grid.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem
+                        AutomationProperties.AutomationId="SaveToFavoritesMenuItem"
+                        Click="SaveToFavorites_Click"
+                        Text="お気に入りに保存" />
+                </MenuFlyout>
+            </Grid.ContextFlyout>
             <TextBlock
                 x:Name="GroupNameText"
                 Padding="8,4"

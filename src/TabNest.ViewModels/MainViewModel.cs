@@ -46,13 +46,17 @@ public sealed class MainViewModel : ViewModelBase
         if (session is not null)
         {
             _favorites.RestoreSavedGroups(session.SavedGroups);
+            foreach (var favorite in _favorites.SavedGroups)
+            {
+                Favorites.Add(new FavoriteItemViewModel(favorite));
+            }
         }
 
         if (session is not null && _tabManager.RestoreSession(session))
         {
             foreach (var group in _tabManager.Groups)
             {
-                Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab), tab => CloseTab(tab)));
+                Groups.Add(CreateGroupViewModel(group));
             }
 
             ApplyActiveStates();
@@ -213,7 +217,7 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         var group = result.Value!;
-        Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab), tab => CloseTab(tab)));
+        Groups.Add(CreateGroupViewModel(group));
         AddTab(group.Id, UserProfilePath);
         OperationError = null;
         return true;
@@ -242,8 +246,11 @@ public sealed class MainViewModel : ViewModelBase
         return $"作業{max + 1}";
     }
 
-    /// <summary>お気に入り(保存済みタブグループ)一覧。保存順(SavedAt 昇順)。</summary>
-    public IReadOnlyList<SavedTabGroup> Favorites => _favorites.SavedGroups;
+    /// <summary>
+    /// お気に入り(保存済みタブグループ)一覧。保存順(SavedAt 昇順)。
+    /// FavoritesService の一覧と同期して UI へ変更通知する。
+    /// </summary>
+    public ObservableCollection<FavoriteItemViewModel> Favorites { get; } = [];
 
     /// <summary>
     /// 指定されたグループ(右クリック対象。アクティブグループとは限らない)を
@@ -266,6 +273,7 @@ public sealed class MainViewModel : ViewModelBase
             return false;
         }
 
+        Favorites.Add(new FavoriteItemViewModel(result.Value!));
         OperationError = null;
         return true;
     }
@@ -296,7 +304,7 @@ public sealed class MainViewModel : ViewModelBase
             return false;
         }
 
-        var groupVm = new TabGroupViewModel(result.Value!, tab => SelectTab(tab), tab => CloseTab(tab));
+        var groupVm = CreateGroupViewModel(result.Value!);
         Groups.Add(groupVm);
         ApplyActiveStates();
         if (groupVm.Tabs.FirstOrDefault() is { } firstTab)
@@ -309,12 +317,17 @@ public sealed class MainViewModel : ViewModelBase
         return true;
     }
 
-    /// <summary>お気に入りを削除する。存在しない場合は false。</summary>
+    /// <summary>お気に入りを削除する(右クリックメニュー)。存在しない場合は false。</summary>
     public bool RemoveFavorite(string favoriteId)
     {
         if (!_favorites.RemoveFavorite(favoriteId))
         {
             return false;
+        }
+
+        if (Favorites.FirstOrDefault(f => f.Id == favoriteId) is { } itemVm)
+        {
+            Favorites.Remove(itemVm);
         }
 
         OperationError = null;
@@ -423,9 +436,19 @@ public sealed class MainViewModel : ViewModelBase
 
         var group = groupResult.Value!;
         _tabManager.AddTab(group.Id, UserProfilePath, GetTabTitle(UserProfilePath));
-        Groups.Add(new TabGroupViewModel(group, tab => SelectTab(tab), tab => CloseTab(tab)));
+        Groups.Add(CreateGroupViewModel(group));
         ApplyActiveStates();
     }
+
+    /// <summary>
+    /// タブグループの ViewModel を生成する(タブ選択・クローズ・お気に入り保存のコールバックを接続)。
+    /// </summary>
+    private TabGroupViewModel CreateGroupViewModel(TabGroup group)
+        => new(
+            group,
+            tab => SelectTab(tab),
+            tab => CloseTab(tab),
+            () => SaveGroupAsFavorite(group.Id));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。
