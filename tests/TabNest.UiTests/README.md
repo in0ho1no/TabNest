@@ -49,6 +49,22 @@ $env:TABNEST_UI_TEST_APP_ID = "<確認した AUMID>"
 dotnet test tests/TabNest.UiTests/TabNest.UiTests.csproj
 ```
 
+## トラブルシューティング
+
+- **テストが「ウィンドウが起動しませんでした」で失敗する / 「パラメーターが間違っています」ダイアログが出る**
+  古い AUMID が使われている可能性が高い。ユーザー環境変数に過去の
+  `TABNEST_UI_TEST_APP_ID` が残っていないか確認する:
+
+  ```powershell
+  [Environment]::GetEnvironmentVariable("TABNEST_UI_TEST_APP_ID", "User")
+  # 古い値が残っていたら削除する
+  [Environment]::SetEnvironmentVariable("TABNEST_UI_TEST_APP_ID", $null, "User")
+  ```
+
+- **セッション作成が120秒ハングする**
+  WinAppDriver は無効な AUMID の活性化でエラーを返さずハングする。
+  上記の環境変数と、パッケージ登録(`Get-StartApps`)を確認する。
+
 ## テストの書き方
 
 - WinAppDriver を必要とするテストには `[Fact]` ではなく **`[UiFact]`** と

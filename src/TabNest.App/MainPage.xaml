@@ -177,6 +177,7 @@
                     CanDragItems="False"
                     CanReorderItems="False"
                     ItemInvoked="FolderTreeView_ItemInvoked"
+                    Loaded="FolderTreeView_Loaded"
                     ItemsSource="{x:Bind ViewModel.Tree.Roots, Mode=OneWay}"
                     SelectionMode="Single">
                     <TreeView.ItemTemplate>

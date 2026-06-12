@@ -66,6 +66,44 @@ public sealed partial class MainPage : Page
         }
     }
 
+    /// <summary>
+    /// TreeView 本体は AutomationPeer を持たず UIA ツリーに現れないため、
+    /// 内部の TreeViewList(UIA 上は Tree として露出する実体)に
+    /// AutomationId="FolderTreeView" を引き継ぐ(SPEC Task 5-2)。
+    /// </summary>
+    private void FolderTreeView_Loaded(object sender, RoutedEventArgs e)
+    {
+        var innerList = FindDescendant<TreeViewList>(FolderTreeView);
+        // 内部構造が変わって取得できなくなった場合は ElementDiscoveryTests でも検出されるが、
+        // 開発中に気付けるようアサートしておく
+        System.Diagnostics.Debug.Assert(innerList is not null, "TreeViewList が見つかりません(FolderTreeView の AutomationId を設定できません)");
+        if (innerList is not null)
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(innerList, "FolderTreeView");
+        }
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        var count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            if (FindDescendant<T>(child) is { } nested)
+            {
+                return nested;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>お気に入りクリック: そのタブグループを新しい段として開く(5段上限は InfoBar 表示)。</summary>
     private void FavoritesListView_ItemClick(object sender, ItemClickEventArgs e)
     {

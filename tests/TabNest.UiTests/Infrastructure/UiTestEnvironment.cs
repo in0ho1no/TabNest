@@ -32,6 +32,9 @@ public static class UiTestEnvironment
             ? overridden
             : DefaultAppId;
 
+    /// <summary>テスト対象アプリのプロセス名(起動完了の検出とアタッチ対象の特定に使う)。</summary>
+    public const string AppProcessName = "TabNest.App";
+
     /// <summary>
     /// WinAppDriver が起動しているか(待ち受けポートへの TCP 接続で判定)。
     /// 未起動の環境では UI テストをスキップするために使う。
