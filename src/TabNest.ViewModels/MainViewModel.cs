@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using TabNest.Core.Interfaces;
+using TabNest.Core.Models;
 using TabNest.Core.Services;
 
 namespace TabNest.ViewModels;
@@ -242,6 +243,24 @@ public sealed class MainViewModel : ViewModelBase
         OperationError = null;
         return tabVm;
     }
+
+    /// <summary>
+    /// アプリ終了時のセッション保存用に、現在のタブ状態(タブグループ・アクティブグループ/タブ・
+    /// 閉じたタブ履歴)とウィンドウサイズ・左カラム幅から AppSettings を生成する(SPEC「設定保存」)。
+    /// タブごとの戻る・進む履歴は保存対象外。SavedGroups(お気に入り)は Task 4-4 で対応する。
+    /// ウィンドウサイズ・左カラム幅は WinUI 依存のため View 側で取得して渡す。
+    /// </summary>
+    public AppSettings CreateAppSettings(double windowWidth, double windowHeight, double leftPaneWidth)
+        => new()
+        {
+            TabGroups = _tabManager.Groups.ToList(),
+            ClosedTabs = _tabManager.ClosedTabs.ToList(),
+            ActiveGroupId = _tabManager.ActiveGroupId,
+            ActiveTabId = _tabManager.ActiveTabId,
+            WindowWidth = windowWidth,
+            WindowHeight = windowHeight,
+            LeftPaneWidth = leftPaneWidth,
+        };
 
     /// <summary>
     /// SPEC「初期起動状態」: グループ「作業1」とタブ1個(%UserProfile%)を作成する。

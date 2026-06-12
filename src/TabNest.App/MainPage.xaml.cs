@@ -21,6 +21,12 @@ public sealed partial class MainPage : Page
     /// <summary>x:Bind 用: 文字列が空でなければ true。</summary>
     public static bool HasText(string? value) => !string.IsNullOrEmpty(value);
 
+    /// <summary>
+    /// 左カラム(お気に入り+フォルダツリー)の現在幅。セッション保存用
+    /// (スプリッターでの変更後の実際の表示幅を返す)。
+    /// </summary>
+    public double LeftPaneWidth => LeftPaneColumn.ActualWidth;
+
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
