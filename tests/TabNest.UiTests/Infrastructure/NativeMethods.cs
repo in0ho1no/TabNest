@@ -37,6 +37,14 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, IntPtr dwExtraInfo);
 
+    public const uint MouseEventLeftDown = 0x0002;
+
+    public const uint MouseEventLeftUp = 0x0004;
+
+    public const uint MouseEventRightDown = 0x0008;
+
+    public const uint MouseEventRightUp = 0x0010;
+
     public const uint MouseEventMiddleDown = 0x0020;
 
     public const uint MouseEventMiddleUp = 0x0040;
