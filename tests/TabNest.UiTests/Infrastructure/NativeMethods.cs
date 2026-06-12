@@ -68,6 +68,9 @@ internal static class NativeMethods
     private static extern IntPtr GlobalAlloc(uint flags, nuint bytes);
 
     [DllImport("kernel32.dll")]
+    private static extern IntPtr GlobalFree(IntPtr hMem);
+
+    [DllImport("kernel32.dll")]
     private static extern IntPtr GlobalLock(IntPtr hMem);
 
     [DllImport("kernel32.dll")]
@@ -94,7 +97,18 @@ internal static class NativeMethods
             EmptyClipboard();
             var bytes = (nuint)((text.Length + 1) * sizeof(char));
             var handle = GlobalAlloc(gmemMoveable, bytes);
+            if (handle == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("クリップボード用メモリの確保に失敗しました。");
+            }
+
             var pointer = GlobalLock(handle);
+            if (pointer == IntPtr.Zero)
+            {
+                GlobalFree(handle);
+                throw new InvalidOperationException("クリップボード用メモリのロックに失敗しました。");
+            }
+
             try
             {
                 Marshal.Copy(text.ToCharArray(), 0, pointer, text.Length);
@@ -105,9 +119,10 @@ internal static class NativeMethods
                 GlobalUnlock(handle);
             }
 
-            // 成功するとクリップボードがメモリの所有権を持つため解放しない
+            // 成功するとクリップボードがメモリの所有権を持つため解放しない(失敗時のみ解放する)
             if (SetClipboardData(cfUnicodeText, handle) == IntPtr.Zero)
             {
+                GlobalFree(handle);
                 throw new InvalidOperationException("クリップボードへの設定に失敗しました。");
             }
         }
