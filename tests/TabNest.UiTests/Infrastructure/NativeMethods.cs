@@ -49,6 +49,89 @@ internal static class NativeMethods
 
     public const uint MouseEventMiddleUp = 0x0040;
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseClipboard();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EmptyClipboard();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetClipboardData(uint format, IntPtr hMem);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GlobalAlloc(uint flags, nuint bytes);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GlobalFree(IntPtr hMem);
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GlobalLock(IntPtr hMem);
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalUnlock(IntPtr hMem);
+
+    /// <summary>
+    /// クリップボードに Unicode テキストを設定する。
+    /// JIS 配列では SendKeys の記号(「"」等)が US スキャンコードで化けるため、
+    /// 記号を含む文字列の入力は Ctrl+V 貼り付けで行う。
+    /// </summary>
+    public static void SetClipboardText(string text)
+    {
+        const uint cfUnicodeText = 13;
+        const uint gmemMoveable = 0x0002;
+
+        if (!OpenClipboard(IntPtr.Zero))
+        {
+            throw new InvalidOperationException("クリップボードを開けませんでした。");
+        }
+
+        try
+        {
+            EmptyClipboard();
+            var bytes = (nuint)((text.Length + 1) * sizeof(char));
+            var handle = GlobalAlloc(gmemMoveable, bytes);
+            if (handle == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("クリップボード用メモリの確保に失敗しました。");
+            }
+
+            var pointer = GlobalLock(handle);
+            if (pointer == IntPtr.Zero)
+            {
+                GlobalFree(handle);
+                throw new InvalidOperationException("クリップボード用メモリのロックに失敗しました。");
+            }
+
+            try
+            {
+                Marshal.Copy(text.ToCharArray(), 0, pointer, text.Length);
+                Marshal.WriteInt16(pointer, text.Length * sizeof(char), 0);
+            }
+            finally
+            {
+                GlobalUnlock(handle);
+            }
+
+            // 成功するとクリップボードがメモリの所有権を持つため解放しない(失敗時のみ解放する)
+            if (SetClipboardData(cfUnicodeText, handle) == IntPtr.Zero)
+            {
+                GlobalFree(handle);
+                throw new InvalidOperationException("クリップボードへの設定に失敗しました。");
+            }
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
     [DllImport("dwmapi.dll")]
     public static extern int DwmGetWindowAttribute(IntPtr hWnd, uint attribute, out Rect rect, int size);
 
