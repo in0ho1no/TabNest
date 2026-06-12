@@ -101,6 +101,33 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void 既存ファイルがある場合Saveで上書き更新される()
+    {
+        // アプリ終了時の保存は前回の settings.json を新しい内容で更新する(Task 4-2)
+        var service = new SettingsService(_settingsPath);
+        Assert.True(service.Save(CreateSampleSettings()));
+
+        var updated = CreateSampleSettings();
+        updated.TabGroups[0].Tabs[0].Path = @"C:\moved";
+        updated.TabGroups[0].Tabs[0].Title = "moved";
+        updated.ActiveTabId = "t1";
+        updated.TabGroups[0].SelectedTabId = "t1";
+        updated.WindowWidth = 1920;
+        updated.WindowHeight = 1080;
+        updated.LeftPaneWidth = 300;
+        Assert.True(service.Save(updated));
+
+        var loaded = new SettingsService(_settingsPath).Load();
+        Assert.Equal(@"C:\moved", loaded.TabGroups[0].Tabs[0].Path);
+        Assert.Equal("moved", loaded.TabGroups[0].Tabs[0].Title);
+        Assert.Equal("t1", loaded.ActiveTabId);
+        Assert.Equal("t1", loaded.TabGroups[0].SelectedTabId);
+        Assert.Equal(1920, loaded.WindowWidth);
+        Assert.Equal(1080, loaded.WindowHeight);
+        Assert.Equal(300, loaded.LeftPaneWidth);
+    }
+
+    [Fact]
     public void ファイルが無い場合は既定値を返す()
     {
         var service = new SettingsService(_settingsPath);
