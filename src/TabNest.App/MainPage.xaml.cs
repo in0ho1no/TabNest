@@ -73,7 +73,11 @@ public sealed partial class MainPage : Page
     /// </summary>
     private void FolderTreeView_Loaded(object sender, RoutedEventArgs e)
     {
-        if (FindDescendant<TreeViewList>(FolderTreeView) is { } innerList)
+        var innerList = FindDescendant<TreeViewList>(FolderTreeView);
+        // 内部構造が変わって取得できなくなった場合は ElementDiscoveryTests でも検出されるが、
+        // 開発中に気付けるようアサートしておく
+        System.Diagnostics.Debug.Assert(innerList is not null, "TreeViewList が見つかりません(FolderTreeView の AutomationId を設定できません)");
+        if (innerList is not null)
         {
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(innerList, "FolderTreeView");
         }
