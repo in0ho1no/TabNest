@@ -174,11 +174,41 @@
                 </Grid.RowDefinitions>
 
                 <!--  自前ヘッダー行(WinUI 3 では DataGrid 系を使わない方針)  -->
+                <!--  タイトルクリックで昇順・降順切り替え、区切りダブルクリックで列幅自動調整  -->
                 <Grid
+                    x:Name="FileListHeader"
                     Grid.Row="0"
                     Padding="16,0,16,4"
                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                     BorderThickness="0,0,0,1">
+                    <Grid.Resources>
+                        <Style x:Key="ColumnHeaderButtonStyle" TargetType="Button">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Padding" Value="0,2" />
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+                        </Style>
+                        <!--
+                            区切りは UIA から検出できるよう Button にする
+                            (Rectangle 等の Shape は AutomationPeer を持たず UI テストで操作できない)。
+                            視覚効果のない透明テンプレートでダブルクリックのみ受け付ける。
+                        -->
+                        <Style x:Key="ColumnSeparatorStyle" TargetType="Button">
+                            <Setter Property="Width" Value="8" />
+                            <Setter Property="HorizontalAlignment" Value="Right" />
+                            <Setter Property="VerticalAlignment" Value="Stretch" />
+                            <Setter Property="IsTabStop" Value="False" />
+                            <Setter Property="UseSystemFocusVisuals" Value="False" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent" />
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Grid.Resources>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="28" />
                         <ColumnDefinition Width="292" />
@@ -186,23 +216,56 @@
                         <ColumnDefinition Width="150" />
                         <ColumnDefinition Width="90" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock
+                    <Button
                         Grid.Column="1"
-                        Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="名前" />
-                    <TextBlock
+                        AutomationProperties.AutomationId="NameColumnHeader"
+                        Click="NameColumnHeader_Click"
+                        Style="{StaticResource ColumnHeaderButtonStyle}">
+                        <TextBlock Style="{ThemeResource CaptionTextBlockStyle}" Text="名前" />
+                    </Button>
+                    <Button
                         Grid.Column="2"
-                        Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="種別" />
-                    <TextBlock
+                        AutomationProperties.AutomationId="TypeColumnHeader"
+                        Click="TypeColumnHeader_Click"
+                        Style="{StaticResource ColumnHeaderButtonStyle}">
+                        <TextBlock Style="{ThemeResource CaptionTextBlockStyle}" Text="種別" />
+                    </Button>
+                    <Button
                         Grid.Column="3"
-                        Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="更新日時" />
-                    <TextBlock
+                        AutomationProperties.AutomationId="LastModifiedColumnHeader"
+                        Click="LastModifiedColumnHeader_Click"
+                        Style="{StaticResource ColumnHeaderButtonStyle}">
+                        <TextBlock Style="{ThemeResource CaptionTextBlockStyle}" Text="更新日時" />
+                    </Button>
+                    <Button
                         Grid.Column="4"
-                        HorizontalAlignment="Right"
-                        Style="{ThemeResource CaptionTextBlockStyle}"
-                        Text="サイズ" />
+                        AutomationProperties.AutomationId="SizeColumnHeader"
+                        Click="SizeColumnHeader_Click"
+                        HorizontalContentAlignment="Right"
+                        Style="{StaticResource ColumnHeaderButtonStyle}">
+                        <TextBlock Style="{ThemeResource CaptionTextBlockStyle}" Text="サイズ" />
+                    </Button>
+                    <!--  列の区切り(右端 8px)。ダブルクリックで表示文字列に応じて列幅を自動調整する  -->
+                    <Button
+                        Grid.Column="1"
+                        AutomationProperties.AutomationId="NameColumnSeparator"
+                        DoubleTapped="NameColumnSeparator_DoubleTapped"
+                        Style="{StaticResource ColumnSeparatorStyle}" />
+                    <Button
+                        Grid.Column="2"
+                        AutomationProperties.AutomationId="TypeColumnSeparator"
+                        DoubleTapped="TypeColumnSeparator_DoubleTapped"
+                        Style="{StaticResource ColumnSeparatorStyle}" />
+                    <Button
+                        Grid.Column="3"
+                        AutomationProperties.AutomationId="LastModifiedColumnSeparator"
+                        DoubleTapped="LastModifiedColumnSeparator_DoubleTapped"
+                        Style="{StaticResource ColumnSeparatorStyle}" />
+                    <Button
+                        Grid.Column="4"
+                        AutomationProperties.AutomationId="SizeColumnSeparator"
+                        DoubleTapped="SizeColumnSeparator_DoubleTapped"
+                        Style="{StaticResource ColumnSeparatorStyle}" />
                 </Grid>
 
                 <!--  ファイル一覧  -->
@@ -210,6 +273,7 @@
                     x:Name="FileListView"
                     Grid.Row="1"
                     AutomationProperties.AutomationId="FileListView"
+                    ContainerContentChanging="FileListView_ContainerContentChanging"
                     DoubleTapped="FileListView_DoubleTapped"
                     ItemsSource="{x:Bind ViewModel.Folder.Items, Mode=OneWay}"
                     SelectionMode="Single">
