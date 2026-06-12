@@ -25,4 +25,41 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetWindowRect(IntPtr hWnd, out Rect rect);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetCursorPos(int x, int y);
+
+    [DllImport("user32.dll")]
+    public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, IntPtr dwExtraInfo);
+
+    public const uint MouseEventMiddleDown = 0x0020;
+
+    public const uint MouseEventMiddleUp = 0x0040;
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmGetWindowAttribute(IntPtr hWnd, uint attribute, out Rect rect, int size);
+
+    /// <summary>DWMWA_EXTENDED_FRAME_BOUNDS: 見えないリサイズ枠を除いた可視ウィンドウ矩形。</summary>
+    public const uint DwmwaExtendedFrameBounds = 9;
+
+    /// <summary>
+    /// ウィンドウの可視矩形(見えないリサイズ枠を除く・物理ピクセル)を取得する。
+    /// WinAppDriver の要素座標はこの矩形の左上を原点とする相対座標のため、
+    /// 物理クリックの座標変換に使う。取得失敗時は GetWindowRect にフォールバックする。
+    /// </summary>
+    public static Rect GetVisibleWindowRect(IntPtr hWnd)
+    {
+        if (DwmGetWindowAttribute(hWnd, DwmwaExtendedFrameBounds, out var rect, Marshal.SizeOf<Rect>()) == 0)
+        {
+            return rect;
+        }
+
+        GetWindowRect(hWnd, out var fallback);
+        return fallback;
+    }
 }
