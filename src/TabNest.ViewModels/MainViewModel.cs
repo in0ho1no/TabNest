@@ -156,7 +156,9 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>
     /// タブを閉じる(ホイールクリック)。アクティブタブを閉じた場合は
-    /// 新しいアクティブタブのフォルダ内容を表示する。
+    /// 新しいアクティブタブのフォルダ内容を表示する。閉じた結果グループが空になった場合は
+    /// Core 側で空グループが自動クローズされるため、対応するグループ表示も除去する(Task 6-6)。
+    /// アプリ内の最後の1タブは閉じられず、状態を変更せず false を返す。
     /// </summary>
     public bool CloseTab(FolderTabViewModel tab)
     {
@@ -168,6 +170,13 @@ public sealed class MainViewModel : ViewModelBase
 
         var groupVm = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
         groupVm?.Tabs.Remove(tab);
+
+        // Core 側でグループが自動クローズされた場合は ViewModel 側のグループ表示も除去する
+        if (groupVm is not null && _tabManager.Groups.All(g => g.Id != groupVm.Id))
+        {
+            Groups.Remove(groupVm);
+        }
+
         ApplyActiveStates();
 
         if (wasActive && _tabManager.ActiveTabId is string newActiveId

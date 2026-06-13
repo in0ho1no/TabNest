@@ -81,14 +81,13 @@ public class TabManagerServiceTests
     {
         var service = new TabManagerService();
         var group = AddGroup(service, "作業1");
-        var tab = AddTab(service, group.Id, UserProfile, "test");
+        var keep = AddTab(service, group.Id, UserProfile, "keep");
+        var tab = AddTab(service, group.Id, @"C:\x", "test");
 
         var ok = service.CloseTab(tab.Id);
 
         Assert.True(ok);
-        Assert.Empty(group.Tabs);
-        Assert.Null(service.ActiveTabId);
-        Assert.Null(group.SelectedTabId);
+        Assert.Equal([keep.Id], group.Tabs.Select(t => t.Id).ToArray());
     }
 
     [Fact]
@@ -143,6 +142,91 @@ public class TabManagerServiceTests
         AddGroup(service, "作業1");
 
         Assert.False(service.CloseTab("no-such-tab"));
+    }
+
+    // --- Task 6-6: グループ内の全タブを閉じたときのグループ自動クローズ ---
+
+    [Fact]
+    public void CloseTab_グループ内の最後のタブを閉じるとそのグループも閉じる()
+    {
+        var service = new TabManagerService();
+        var group1 = AddGroup(service, "作業1");
+        var group2 = AddGroup(service, "作業2");
+        AddTab(service, group1.Id, @"C:\a", "a");
+        var b = AddTab(service, group2.Id, @"C:\b", "b");
+
+        var ok = service.CloseTab(b.Id);
+
+        Assert.True(ok);
+        // group2 は空になったので自動的に閉じる(空グループが残らない)
+        Assert.Equal([group1.Id], service.Groups.Select(g => g.Id).ToArray());
+    }
+
+    [Fact]
+    public void CloseTab_自動クローズで消える最後のタブもClosedTabへ積む()
+    {
+        var service = new TabManagerService();
+        var group1 = AddGroup(service, "作業1");
+        var group2 = AddGroup(service, "作業2");
+        AddTab(service, group1.Id, @"C:\a", "a");
+        var b = AddTab(service, group2.Id, @"C:\b", "b");
+
+        service.CloseTab(b.Id);
+
+        // グループの明示削除(RemoveGroup)とは異なり、閉じたタブは履歴へ積む
+        Assert.Contains(service.ClosedTabs, c => c.Path == @"C:\b");
+    }
+
+    [Fact]
+    public void CloseTab_アクティブグループの最後のタブを閉じると別グループへフォーカスが移る()
+    {
+        var service = new TabManagerService();
+        var group1 = AddGroup(service, "作業1");
+        var group2 = AddGroup(service, "作業2");
+        var a = AddTab(service, group1.Id, @"C:\a", "a");
+        var b = AddTab(service, group2.Id, @"C:\b", "b");
+        service.SetActiveTab(b.Id);
+
+        var ok = service.CloseTab(b.Id);
+
+        Assert.True(ok);
+        // group2 は閉じ、先頭の残存グループ(group1)の選択タブがアクティブになる
+        Assert.Equal([group1.Id], service.Groups.Select(g => g.Id).ToArray());
+        Assert.Equal(group1.Id, service.ActiveGroupId);
+        Assert.Equal(a.Id, service.ActiveTabId);
+    }
+
+    [Fact]
+    public void CloseTab_グループ1つタブ1つのときは閉じられず状態が変わらない()
+    {
+        var service = new TabManagerService();
+        var group = AddGroup(service, "作業1");
+        var only = AddTab(service, group.Id, @"C:\a", "a");
+
+        var ok = service.CloseTab(only.Id);
+
+        Assert.False(ok);
+        // 状態は変更されない(常にタブ1個以上・グループ1段以上を保持する)
+        Assert.Equal([only.Id], group.Tabs.Select(t => t.Id).ToArray());
+        Assert.Single(service.Groups);
+        Assert.Equal(only.Id, service.ActiveTabId);
+        // 拒否した閉じる操作は ClosedTab 履歴へ積まない
+        Assert.Empty(service.ClosedTabs);
+    }
+
+    [Fact]
+    public void CloseTab_複数グループでも全体最後の1タブは閉じられない()
+    {
+        var service = new TabManagerService();
+        var group1 = AddGroup(service, "作業1");
+        AddGroup(service, "作業2"); // タブ0個の空グループ(D&D 等で生じ得る)
+        var only = AddTab(service, group1.Id, @"C:\a", "a");
+
+        var ok = service.CloseTab(only.Id);
+
+        Assert.False(ok);
+        Assert.Single(group1.Tabs);
+        Assert.Equal(2, service.Groups.Count);
     }
 
     [Fact]

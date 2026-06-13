@@ -55,16 +55,17 @@ public class ShortcutCloseActiveTabTests
     }
 
     [Fact]
-    public void CloseActiveTab_最後のタブを閉じてもクラッシュしない()
+    public void CloseActiveTab_アプリ内最後の1タブは閉じられない()
     {
         var (vm, _) = Create();
-        Assert.Single(vm.Groups[0].Tabs); // 初期タブのみ(アクティブ)
+        var initial = Assert.Single(vm.Groups[0].Tabs); // 初期タブのみ(アクティブ)
 
         var ok = vm.CloseActiveTab();
 
-        Assert.True(ok);
-        Assert.Empty(vm.Groups[0].Tabs);
-        Assert.Single(vm.Groups); // グループ自体は残る
+        Assert.False(ok);
+        Assert.Single(vm.Groups[0].Tabs); // タブは残る
+        Assert.Same(initial, vm.Groups[0].Tabs[0]);
+        Assert.Single(vm.Groups); // グループも残る
     }
 
     [Fact]
