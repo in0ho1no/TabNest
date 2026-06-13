@@ -144,8 +144,8 @@ public class TabOperationTests
             // 状態が変わらないことを確認するため、一定回数連続でタブ1個を確認する
             for (var i = 0; i < 5; i++)
             {
-                Assert.Equal(1, UiActions.FindTabs(session).Count);
-                Assert.Equal(1, UiActions.FindGroupRows(session).Count);
+                Assert.Single(UiActions.FindTabs(session));
+                Assert.Single(UiActions.FindGroupRows(session));
             }
         }
     }
