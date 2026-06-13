@@ -333,4 +333,132 @@ public class TabManagerServiceTests
 
         Assert.False(ok);
     }
+
+    [Fact]
+    public void MoveTabToGroup_別グループの指定位置へタブが移動する()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var a = AddTab(service, g1.Id, @"C:\a", "a");
+        AddTab(service, g1.Id, @"C:\b", "b");
+        AddTab(service, g2.Id, @"C:\x", "x");
+        AddTab(service, g2.Id, @"C:\y", "y");
+
+        // a を g2 の先頭(index 0)へ移動する
+        var result = service.MoveTabToGroup(a.Id, g2.Id, 0);
+
+        Assert.True(result.IsSuccess);
+        Assert.Same(a, result.Value);
+        Assert.Equal(["b"], g1.Tabs.Select(t => t.Title).ToArray());
+        Assert.Equal(["a", "x", "y"], g2.Tabs.Select(t => t.Title).ToArray());
+    }
+
+    [Fact]
+    public void MoveTabToGroup_範囲外の挿入位置は末尾へ補正される()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var a = AddTab(service, g1.Id, @"C:\a", "a");
+        AddTab(service, g1.Id, @"C:\b", "b");
+        AddTab(service, g2.Id, @"C:\x", "x");
+
+        var result = service.MoveTabToGroup(a.Id, g2.Id, 99);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(["x", "a"], g2.Tabs.Select(t => t.Title).ToArray());
+    }
+
+    [Fact]
+    public void MoveTabToGroup_移動先が上限のときは移動せず失敗し状態を変えない()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var a = AddTab(service, g1.Id, @"C:\a", "a");
+        for (var i = 0; i < TabManagerService.MaxTabsPerGroup; i++)
+        {
+            AddTab(service, g2.Id, $@"C:\g2-{i}", $"g2-{i}");
+        }
+
+        var result = service.MoveTabToGroup(a.Id, g2.Id, 0);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(TabOperationError.TabLimitReached, result.Error);
+        Assert.Single(g1.Tabs);
+        Assert.Same(a, g1.Tabs[0]);
+        Assert.Equal(TabManagerService.MaxTabsPerGroup, g2.Tabs.Count);
+    }
+
+    [Fact]
+    public void MoveTabToGroup_移動元が空になってもグループは維持される()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var only = AddTab(service, g1.Id, @"C:\only", "only");
+        AddTab(service, g2.Id, @"C:\x", "x");
+
+        var result = service.MoveTabToGroup(only.Id, g2.Id, 1);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(g1.Tabs);
+        Assert.Equal(2, service.Groups.Count); // 空になった g1 も残る
+        Assert.Contains(service.Groups, g => g.Id == g1.Id);
+        Assert.Null(g1.SelectedTabId);
+    }
+
+    [Fact]
+    public void MoveTabToGroup_アクティブタブを移動すると移動先グループで引き続きアクティブになる()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var a = AddTab(service, g1.Id, @"C:\a", "a");
+        AddTab(service, g1.Id, @"C:\b", "b");
+        AddTab(service, g2.Id, @"C:\x", "x");
+        service.SetActiveTab(a.Id);
+
+        service.MoveTabToGroup(a.Id, g2.Id, 0);
+
+        Assert.Equal(a.Id, service.ActiveTabId);
+        Assert.Equal(g2.Id, service.ActiveGroupId);
+        Assert.Equal(a.Id, g2.SelectedTabId);
+    }
+
+    [Fact]
+    public void MoveTabToGroup_移動元の選択タブが移動した場合は隣のタブへ追従する()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var a = AddTab(service, g1.Id, @"C:\a", "a");
+        var b = AddTab(service, g1.Id, @"C:\b", "b");
+        AddTab(service, g2.Id, @"C:\x", "x");
+        // g1 の選択タブを a にしてから g2 の x をアクティブにする(g1 の選択タブは a のまま残る)
+        service.SetActiveTab(a.Id);
+        service.SetActiveTab(g2.Tabs[0].Id);
+        Assert.Equal(a.Id, g1.SelectedTabId);
+
+        service.MoveTabToGroup(a.Id, g2.Id, 0);
+
+        Assert.Equal(b.Id, g1.SelectedTabId); // 隣(次)の b へ追従
+    }
+
+    [Fact]
+    public void MoveTabToGroup_存在しないタブやグループは失敗する()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var a = AddTab(service, g1.Id, @"C:\a", "a");
+
+        Assert.Equal(
+            TabOperationError.TabNotFound,
+            service.MoveTabToGroup("no-such-tab", g2.Id, 0).Error);
+        Assert.Equal(
+            TabOperationError.GroupNotFound,
+            service.MoveTabToGroup(a.Id, "no-such-group", 0).Error);
+    }
 }

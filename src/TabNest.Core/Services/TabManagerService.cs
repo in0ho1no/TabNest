@@ -399,6 +399,66 @@ public sealed class TabManagerService
     }
 
     /// <summary>
+    /// タブを別グループへ移動する(Task 7-2。グループ間 D&amp;D の結果を反映)。
+    /// <paramref name="insertIndex"/> は移動先グループにおける挿入位置(0..Count、範囲外は補正)。
+    /// 移動先グループのタブ上限(20)到達時は移動せず失敗結果を返す(状態は一切変更しない)。
+    /// 移動元の SelectedTabId が移動したタブを指していた場合は隣のタブ(次優先・無ければ前)へ追従させ、
+    /// 移動したタブがアクティブだった場合は移動先グループで引き続きアクティブにする
+    /// (ActiveGroupId も移動先へ更新)。移動元が空になってもグループは維持する
+    /// (空グループの自動クローズは「タブを閉じる」操作に限定。SPEC Task 7-2)。
+    /// 本メソッドは別グループへの移動を想定する(同一グループ内の並べ替えは <see cref="ReorderTabs"/> を使う)。
+    /// タブ・グループが存在しない場合は失敗結果を返す。
+    /// </summary>
+    public TabOperationResult<FolderTab> MoveTabToGroup(string tabId, string targetGroupId, int insertIndex)
+    {
+        var sourceGroup = _groups.FirstOrDefault(g => g.Tabs.Any(t => t.Id == tabId));
+        if (sourceGroup is null)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabNotFound,
+                "指定されたタブが見つかりません。");
+        }
+
+        if (FindGroup(targetGroupId) is not TabGroup targetGroup)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.GroupNotFound,
+                "移動先のグループが見つかりません。");
+        }
+
+        if (!ReferenceEquals(sourceGroup, targetGroup) && targetGroup.Tabs.Count >= MaxTabsPerGroup)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabLimitReached,
+                $"移動先グループのタブは最大 {MaxTabsPerGroup} 個までです。");
+        }
+
+        var index = sourceGroup.Tabs.FindIndex(t => t.Id == tabId);
+        var tab = sourceGroup.Tabs[index];
+        sourceGroup.Tabs.RemoveAt(index);
+
+        var clamped = Math.Clamp(insertIndex, 0, targetGroup.Tabs.Count);
+        targetGroup.Tabs.Insert(clamped, tab);
+
+        // 移動元の選択タブ追従(移動したタブが選択中だった場合は隣のタブへ。空になれば null)
+        if (sourceGroup.SelectedTabId == tabId)
+        {
+            var neighbor = index < sourceGroup.Tabs.Count
+                ? sourceGroup.Tabs[index]
+                : sourceGroup.Tabs.LastOrDefault();
+            sourceGroup.SelectedTabId = neighbor?.Id;
+        }
+
+        // アクティブだったタブは移動先グループで引き続きアクティブにする(ActiveGroupId も追従)
+        if (ActiveTabId == tabId)
+        {
+            SetActiveTab(tabId);
+        }
+
+        return TabOperationResult<FolderTab>.Success(tab);
+    }
+
+    /// <summary>
     /// アクティブタブを変更する。所属グループもアクティブになり、
     /// グループの SelectedTabId も更新される。タブが存在しない場合は false。
     /// </summary>

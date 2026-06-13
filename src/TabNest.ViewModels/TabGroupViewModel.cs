@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using TabNest.Core.Models;
+using TabNest.Core.Services;
 
 namespace TabNest.ViewModels;
 
@@ -15,6 +16,7 @@ public sealed class TabGroupViewModel : ViewModelBase
     private readonly Action? _saveAsFavorite;
     private readonly Action? _removeGroup;
     private readonly Action<IReadOnlyList<string>>? _reorderTabs;
+    private readonly Func<FolderTabViewModel, int, bool>? _moveTabIntoGroup;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
@@ -26,7 +28,8 @@ public sealed class TabGroupViewModel : ViewModelBase
         Action? saveAsFavorite = null,
         Action? removeGroup = null,
         Action<FolderTabViewModel>? duplicateTab = null,
-        Action<IReadOnlyList<string>>? reorderTabs = null)
+        Action<IReadOnlyList<string>>? reorderTabs = null,
+        Func<FolderTabViewModel, int, bool>? moveTabIntoGroup = null)
     {
         _model = model;
         _selectTab = selectTab;
@@ -35,6 +38,7 @@ public sealed class TabGroupViewModel : ViewModelBase
         _removeGroup = removeGroup;
         _duplicateTab = duplicateTab;
         _reorderTabs = reorderTabs;
+        _moveTabIntoGroup = moveTabIntoGroup;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -89,6 +93,20 @@ public sealed class TabGroupViewModel : ViewModelBase
         Tabs.Move(oldIndex, newIndex);
         _reorderTabs?.Invoke(Tabs.Select(t => t.Id).ToList());
         return true;
+    }
+
+    /// <summary>このグループのタブ数が上限(20)に達しているか(グループ間 D&amp;D の受け入れ判定。Task 7-2)。</summary>
+    public bool IsTabLimitReached => Tabs.Count >= TabManagerService.MaxTabsPerGroup;
+
+    /// <summary>
+    /// 別グループのタブを、このグループの <paramref name="insertIndex"/> の位置へ移動して受け入れる
+    /// (グループ間 D&amp;D。Task 7-2)。実際のモデル更新と表示順同期は親 ViewModel に委譲する。
+    /// 受け入れに成功した場合は true、上限到達などで移動しなかった場合は false を返す。
+    /// </summary>
+    public bool MoveTabFromOtherGroup(FolderTabViewModel source, int insertIndex)
+    {
+        ClearDropIndicators();
+        return _moveTabIntoGroup?.Invoke(source, insertIndex) ?? false;
     }
 
     /// <summary>

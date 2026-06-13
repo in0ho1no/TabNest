@@ -55,9 +55,12 @@
                 Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsEditingName), Mode=OneWay}" />
         </Grid>
 
-        <!--  タブ横並び+水平スクロール  -->
+        <!--  タブ横並び+水平スクロール(空白部・空グループへのドロップは ScrollViewer がフォールバックで受ける。Task 7-2)  -->
         <ScrollViewer
             Grid.Column="1"
+            AllowDrop="True"
+            DragOver="Group_DragOver"
+            Drop="Group_Drop"
             HorizontalScrollBarVisibility="Auto"
             HorizontalScrollMode="Enabled"
             VerticalScrollBarVisibility="Hidden"
