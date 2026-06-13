@@ -38,6 +38,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -66,22 +67,31 @@
                 Content="&#xE74A;"
                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
                 ToolTipService.ToolTip="上の階層へ" />
+            <ToggleButton
+                x:Name="ToggleFolderTreeButton"
+                Grid.Column="3"
+                AutomationProperties.AutomationId="ToggleFolderTreeButton"
+                AutomationProperties.Name="フォルダツリーの表示切替"
+                Content="&#xEC50;"
+                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                IsChecked="{x:Bind ViewModel.IsFolderTreeVisible, Mode=TwoWay}"
+                ToolTipService.ToolTip="フォルダツリーの表示/非表示" />
             <TextBox
                 x:Name="PathTextBox"
-                Grid.Column="3"
+                Grid.Column="4"
                 AutomationProperties.AutomationId="PathTextBox"
                 KeyDown="PathTextBox_KeyDown"
                 Text="{x:Bind ViewModel.Folder.AddressBarText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
             <Button
                 x:Name="AddTabButton"
-                Grid.Column="4"
+                Grid.Column="5"
                 AutomationProperties.AutomationId="AddTabButton"
                 Command="{x:Bind ViewModel.AddTabCommand, Mode=OneWay}"
                 Content="タブ追加"
                 ToolTipService.ToolTip="アクティブグループの末尾に新規タブを追加 (Ctrl+T)" />
             <Button
                 x:Name="AddGroupButton"
-                Grid.Column="5"
+                Grid.Column="6"
                 AutomationProperties.AutomationId="AddGroupButton"
                 Command="{x:Bind ViewModel.AddGroupCommand, Mode=OneWay}"
                 Content="グループ追加"
@@ -197,7 +207,8 @@
                     ItemInvoked="FolderTreeView_ItemInvoked"
                     Loaded="FolderTreeView_Loaded"
                     ItemsSource="{x:Bind ViewModel.Tree.Roots, Mode=OneWay}"
-                    SelectionMode="Single">
+                    SelectionMode="Single"
+                    Visibility="{x:Bind local:MainPage.VisibleWhen(ViewModel.IsFolderTreeVisible), Mode=OneWay}">
                     <TreeView.ItemTemplate>
                         <DataTemplate x:DataType="vm:FolderTreeNodeViewModel">
                             <TreeViewItem
@@ -245,7 +256,8 @@
                         <!--
                             区切りは UIA から検出できるよう Button にする
                             (Rectangle 等の Shape は AutomationPeer を持たず UI テストで操作できない)。
-                            視覚効果のない透明テンプレートでダブルクリックのみ受け付ける。
+                            8px の透明領域でダブルクリックを受け付けつつ、右端に視認できる区切り線を描く
+                            (区切り位置が分かり、その位置のダブルクリックで列幅を自動調整できる。Task 6-5)。
                         -->
                         <Style x:Key="ColumnSeparatorStyle" TargetType="Button">
                             <Setter Property="Width" Value="8" />
@@ -256,7 +268,12 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="Button">
-                                        <Border Background="Transparent" />
+                                        <Border Background="Transparent">
+                                            <Rectangle
+                                                Width="1"
+                                                HorizontalAlignment="Right"
+                                                Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                        </Border>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>

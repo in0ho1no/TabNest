@@ -180,6 +180,27 @@ public class SessionRestoreTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void フォルダツリー表示状態が復元される(bool saved)
+    {
+        var session = CreateSampleSession();
+        session.IsFolderTreeVisible = saved;
+
+        var vm = CreateViewModel(session);
+
+        Assert.Equal(saved, vm.IsFolderTreeVisible);
+    }
+
+    [Fact]
+    public void セッションなしの場合_フォルダツリーは既定で表示される()
+    {
+        var vm = CreateViewModel(session: null);
+
+        Assert.True(vm.IsFolderTreeVisible);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(double.NaN)]

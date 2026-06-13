@@ -14,6 +14,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly FavoritesService _favorites = new();
     private string _title = "TabNest";
     private string? _operationError;
+    private bool _isFolderTreeVisible = true;
 
     /// <param name="session">
     /// 復元するセッション(起動時に settings.json から読み込んだ AppSettings)。
@@ -40,6 +41,8 @@ public sealed class MainViewModel : ViewModelBase
         LeftPaneWidth = Math.Max(
             MinLeftPaneWidth,
             NormalizeLength(session?.LeftPaneWidth ?? 0, fallback: DefaultLeftPaneWidth));
+        // フォルダツリーの表示状態を復元する(保存値が無い場合は既定で表示する)
+        _isFolderTreeVisible = session?.IsFolderTreeVisible ?? true;
 
         // お気に入りはタブ状態の復元成否と独立して復元する
         // (タブ状態が無く初期起動状態になる場合でも、保存済みのお気に入りは保持する)
@@ -97,6 +100,16 @@ public sealed class MainViewModel : ViewModelBase
     {
         get => _title;
         set => SetProperty(ref _title, value);
+    }
+
+    /// <summary>
+    /// 左カラムのフォルダツリーを表示するか(Task 6-5)。トグルで切り替え、settings.json に保存・復元する。
+    /// false のとき View 側でフォルダツリー領域を畳む(お気に入り領域は残す)。
+    /// </summary>
+    public bool IsFolderTreeVisible
+    {
+        get => _isFolderTreeVisible;
+        set => SetProperty(ref _isFolderTreeVisible, value);
     }
 
     /// <summary>表示中フォルダのファイル一覧 ViewModel。</summary>
@@ -598,6 +611,7 @@ public sealed class MainViewModel : ViewModelBase
             WindowWidth = windowWidth,
             WindowHeight = windowHeight,
             LeftPaneWidth = leftPaneWidth,
+            IsFolderTreeVisible = _isFolderTreeVisible,
         };
 
     /// <summary>

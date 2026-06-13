@@ -53,6 +53,7 @@ public sealed class SettingsServiceTests : IDisposable
         WindowWidth = 1280,
         WindowHeight = 800,
         LeftPaneWidth = 250,
+        IsFolderTreeVisible = false,
     };
 
     [Fact]
@@ -86,6 +87,7 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(1280, loaded.WindowWidth);
         Assert.Equal(800, loaded.WindowHeight);
         Assert.Equal(250, loaded.LeftPaneWidth);
+        Assert.False(loaded.IsFolderTreeVisible);
     }
 
     [Fact]
@@ -139,6 +141,7 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Empty(settings.SavedGroups);
         Assert.Null(settings.ActiveGroupId);
         Assert.Equal(220, settings.LeftPaneWidth);
+        Assert.True(settings.IsFolderTreeVisible);
     }
 
     [Fact]

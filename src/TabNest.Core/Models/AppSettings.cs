@@ -21,4 +21,7 @@ public sealed class AppSettings
     public double WindowHeight { get; set; }
 
     public double LeftPaneWidth { get; set; } = 220;
+
+    /// <summary>左カラムのフォルダツリーを表示するか(既定 true)。Task 6-5 で追加。</summary>
+    public bool IsFolderTreeVisible { get; set; } = true;
 }
