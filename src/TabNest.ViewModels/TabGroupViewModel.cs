@@ -12,6 +12,7 @@ public sealed class TabGroupViewModel : ViewModelBase
     private readonly Action<FolderTabViewModel>? _selectTab;
     private readonly Action<FolderTabViewModel>? _closeTab;
     private readonly Action? _saveAsFavorite;
+    private readonly Action? _removeGroup;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
@@ -20,12 +21,14 @@ public sealed class TabGroupViewModel : ViewModelBase
         TabGroup model,
         Action<FolderTabViewModel>? selectTab = null,
         Action<FolderTabViewModel>? closeTab = null,
-        Action? saveAsFavorite = null)
+        Action? saveAsFavorite = null,
+        Action? removeGroup = null)
     {
         _model = model;
         _selectTab = selectTab;
         _closeTab = closeTab;
         _saveAsFavorite = saveAsFavorite;
+        _removeGroup = removeGroup;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -42,6 +45,12 @@ public sealed class TabGroupViewModel : ViewModelBase
 
     /// <summary>このグループをお気に入りに保存する(グループ名の右クリックメニュー。親 ViewModel に委譲)。</summary>
     public void SaveAsFavorite() => _saveAsFavorite?.Invoke();
+
+    /// <summary>このグループを削除する(グループ名の右クリックメニュー。親 ViewModel に委譲)。</summary>
+    public void RemoveGroup() => _removeGroup?.Invoke();
+
+    /// <summary>このグループがタブを1個以上持つか(削除時の確認ダイアログ要否の判定に使う)。</summary>
+    public bool HasTabs => Tabs.Count > 0;
 
     public string Id => _model.Id;
 

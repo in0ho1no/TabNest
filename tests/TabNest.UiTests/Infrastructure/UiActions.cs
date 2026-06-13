@@ -115,12 +115,33 @@ public static class UiActions
     /// メニュー項目を追加・並び替えする場合は、このヘルパーの利用箇所を必ず見直すこと。
     /// </summary>
     public static void InvokeFirstContextMenuItem(AppSession session, IWebElement element)
+        => InvokeContextMenuItem(session, element, 0);
+
+    /// <summary>
+    /// 右クリックで MenuFlyout を開き、index 番目(0始まり)のメニュー項目を実行する。
+    /// MenuFlyout は別 HWND のポップアップでセッションの要素ツリーに現れず、
+    /// WinAppDriver の SendKeys はアタッチした主ウィンドウへ送られて届かないため、
+    /// フォアグラウンドの開いたフライアウトへ物理キー入力(keybd_event)で
+    /// ↓ を (index+1) 回送って目的の項目までフォーカスを移し、Enter で実行する。
+    /// </summary>
+    public static void InvokeContextMenuItem(AppSession session, IWebElement element, int index)
     {
         RightClick(session, element);
         Thread.Sleep(500); // フライアウトの表示待ち
-        new OpenQA.Selenium.Interactions.Actions(session.Driver)
-            .SendKeys(Keys.ArrowDown + Keys.Enter)
-            .Perform();
+        for (var i = 0; i <= index; i++)
+        {
+            PressKey(NativeMethods.VkDown);
+        }
+
+        PressKey(NativeMethods.VkReturn);
+    }
+
+    /// <summary>物理キーを1回押下・解放する(フォアグラウンドのフライアウト等へ直接届く)。</summary>
+    private static void PressKey(byte virtualKey)
+    {
+        NativeMethods.keybd_event(virtualKey, 0, 0, IntPtr.Zero);
+        NativeMethods.keybd_event(virtualKey, 0, NativeMethods.KeyEventKeyUp, IntPtr.Zero);
+        Thread.Sleep(80);
     }
 
     private static void MoveCursorToElementCenter(AppSession session, IWebElement element)

@@ -105,6 +105,34 @@ public class GroupOperationTests
 
     [UiFact]
     [Trait("Category", "UITest")]
+    public void RemoveGroup_With_Tabs_Should_Confirm_And_Delete()
+    {
+        var (settings, session) = LaunchAtInitialState();
+        using (settings)
+        using (session)
+        {
+            // 作業2 を追加(削除対象。最後の1グループは削除できないため2段にする)
+            UiActions.SendShortcut(session, Keys.Control, "g");
+            UiActions.WaitForGroupCount(session, 2);
+
+            // 作業2 のグループ名を右クリックし、2番目の項目「グループを削除」を実行する
+            var work2 = session.Driver.FindElementsByAccessibilityId("GroupNameText").ElementAt(1);
+            UiActions.InvokeContextMenuItem(session, work2, index: 1);
+
+            // タブを持つグループなので確認ダイアログが出る。「削除」(PrimaryButton)を押す
+            Assert.True(
+                UiActions.WaitUntil(
+                    () => session.Driver.FindElementsByAccessibilityId("RemoveGroupConfirmDialog").Count == 1),
+                "削除確認ダイアログが表示されませんでした。");
+            session.Driver.FindElementByAccessibilityId("PrimaryButton").Click();
+
+            UiActions.WaitForGroupCount(session, 1);
+            Assert.Equal(["作業1"], GroupNames(session));
+        }
+    }
+
+    [UiFact]
+    [Trait("Category", "UITest")]
     public void Favorite_Save_And_Open_Should_Restore_Group()
     {
         var (settings, session) = LaunchAtInitialState();
