@@ -11,18 +11,45 @@
     DataContextChanged="OnDataContextChanged"
     mc:Ignorable="d">
 
-    <Grid Padding="4,2" ColumnSpacing="8">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <!--  段全体をグループ段の D&D ドロップ先にする(挿入位置インジケータを上下に表示。Task 7-3)  -->
+    <Grid
+        AllowDrop="True"
+        DragLeave="Row_DragLeave"
+        DragOver="Row_DragOver"
+        Drop="Row_Drop">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-        <!--  グループ名(ダブルクリックでインライン編集、右クリックでお気に入りに保存)  -->
+        <!--  段の上端への挿入位置インジケータ(Task 7-3)  -->
+        <Border
+            Grid.Row="0"
+            Height="3"
+            Margin="4,0"
+            Background="{ThemeResource AccentFillColorDefaultBrush}"
+            CornerRadius="2"
+            Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsDropAbove), Mode=OneWay}" />
+
         <Grid
-            Grid.Column="0"
-            MinWidth="80"
-            VerticalAlignment="Center">
-            <Grid.ContextFlyout>
+            Grid.Row="1"
+            Padding="4,2"
+            ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!--  グループ名(ダブルクリックでインライン編集、右クリックでお気に入りに保存)。段の D&D ドラッグハンドルを兼ねる(Task 7-3)  -->
+            <Grid
+                Grid.Column="0"
+                MinWidth="80"
+                VerticalAlignment="Center"
+                CanDrag="True"
+                DragStarting="GroupName_DragStarting"
+                DropCompleted="GroupName_DropCompleted">
+                <Grid.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem
                         AutomationProperties.AutomationId="SaveToFavoritesMenuItem"
@@ -128,5 +155,15 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
+        </Grid>
+
+        <!--  段の下端への挿入位置インジケータ(Task 7-3)  -->
+        <Border
+            Grid.Row="2"
+            Height="3"
+            Margin="4,0"
+            Background="{ThemeResource AccentFillColorDefaultBrush}"
+            CornerRadius="2"
+            Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsDropBelow), Mode=OneWay}" />
     </Grid>
 </UserControl>

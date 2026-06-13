@@ -399,6 +399,37 @@ public sealed class TabManagerService
     }
 
     /// <summary>
+    /// タブグループ(段)を指定された Id 順に並べ替える(Task 7-3。グループ段の D&amp;D の結果を反映)。
+    /// orderedIds に含まれない既存グループは末尾に元の相対順で残し、未知の Id は無視する(防御的)。
+    /// 並べ替えはグループの同一性(Id)を変えないため、アクティブグループ・アクティブタブ・各グループ内容は保持される。
+    /// 並べ替え後の段順は CreateAppSettings 経由で settings.json に保存される。
+    /// </summary>
+    public bool ReorderGroups(IReadOnlyList<string> orderedIds)
+    {
+        var reordered = new List<TabGroup>(_groups.Count);
+        foreach (var id in orderedIds)
+        {
+            var group = _groups.FirstOrDefault(g => g.Id == id);
+            if (group is not null && !reordered.Contains(group))
+            {
+                reordered.Add(group);
+            }
+        }
+
+        foreach (var group in _groups)
+        {
+            if (!reordered.Contains(group))
+            {
+                reordered.Add(group);
+            }
+        }
+
+        _groups.Clear();
+        _groups.AddRange(reordered);
+        return true;
+    }
+
+    /// <summary>
     /// タブを別グループへ移動する(Task 7-2。グループ間 D&amp;D の結果を反映)。
     /// <paramref name="insertIndex"/> は移動先グループにおける挿入位置(0..Count、範囲外は補正)。
     /// 移動先グループのタブ上限(20)到達時は移動せず失敗結果を返す(状態は一切変更しない)。
