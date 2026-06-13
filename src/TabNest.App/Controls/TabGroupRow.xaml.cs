@@ -271,6 +271,7 @@ public sealed partial class TabGroupRow : UserControl
             return;
         }
 
+        e.Handled = true;
         e.DragUIOverride.IsGlyphVisible = false;
         e.DragUIOverride.IsCaptionVisible = false;
 
@@ -282,8 +283,17 @@ public sealed partial class TabGroupRow : UserControl
         }
 
         e.AcceptedOperation = DataPackageOperation.Move;
-        // 末尾(最後のタブの右)へ挿入することを示す。空グループはインジケータ対象が無く何も出さない
-        ViewModel.SetDropIndicator(ViewModel.Tabs.LastOrDefault(), after: true);
+
+        // 末尾(最後のタブの右)へ挿入することを示す。空グループはインジケータ対象が無く何も出さない。
+        // 同一グループで末尾タブ自身が末尾へ移る場合は変化が無いためインジケータを出さない。
+        var last = ViewModel.Tabs.LastOrDefault();
+        if (last is null || ReferenceEquals(last, s_draggingTab))
+        {
+            ViewModel.ClearDropIndicators();
+            return;
+        }
+
+        ViewModel.SetDropIndicator(last, after: true);
     }
 
     /// <summary>
