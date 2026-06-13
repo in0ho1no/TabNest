@@ -167,6 +167,42 @@ public sealed class MainViewModel : ViewModelBase
         return true;
     }
 
+    /// <summary>
+    /// グループを削除する(グループ名の右クリックメニュー)。最後の1グループは削除できず、
+    /// その場合は OperationError を設定して false を返す。削除対象がアクティブグループの場合は
+    /// 隣接グループが新しいアクティブになり、そのアクティブタブのフォルダ内容を表示する。
+    /// 削除されたグループ内のタブは ClosedTab 履歴へ積まない(明示的なグループ破棄操作のため)。
+    /// 確認ダイアログ(タブを持つグループの削除時)は View 側で表示してから本メソッドを呼ぶ。
+    /// </summary>
+    public bool RemoveGroup(string groupId)
+    {
+        var wasActiveGroup = _tabManager.ActiveGroupId == groupId;
+        var result = _tabManager.RemoveGroup(groupId);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        if (Groups.FirstOrDefault(g => g.Id == groupId) is { } groupVm)
+        {
+            Groups.Remove(groupVm);
+        }
+
+        ApplyActiveStates();
+
+        // アクティブグループを削除した場合は新しいアクティブタブのフォルダ内容を表示する
+        if (wasActiveGroup && _tabManager.ActiveTabId is string newActiveId
+            && FindTabViewModel(newActiveId) is { } newActiveVm)
+        {
+            Folder.AttachHistory(newActiveVm.History);
+            Folder.ShowFolder(newActiveVm.Path);
+        }
+
+        OperationError = null;
+        return true;
+    }
+
     /// <summary>グループ名のインライン編集中かどうか(編集中はショートカットを無効にする)。</summary>
     public bool IsRenameInProgress => Groups.Any(g => g.IsEditingName);
 
@@ -448,7 +484,8 @@ public sealed class MainViewModel : ViewModelBase
             group,
             tab => SelectTab(tab),
             tab => CloseTab(tab),
-            () => SaveGroupAsFavorite(group.Id));
+            () => SaveGroupAsFavorite(group.Id),
+            () => RemoveGroup(group.Id));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。

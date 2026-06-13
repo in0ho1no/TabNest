@@ -28,6 +28,10 @@
                         AutomationProperties.AutomationId="SaveToFavoritesMenuItem"
                         Click="SaveToFavorites_Click"
                         Text="お気に入りに保存" />
+                    <MenuFlyoutItem
+                        AutomationProperties.AutomationId="RemoveGroupMenuItem"
+                        Click="RemoveGroup_Click"
+                        Text="グループを削除" />
                 </MenuFlyout>
             </Grid.ContextFlyout>
             <TextBlock

@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -96,6 +97,37 @@ public sealed partial class TabGroupRow : UserControl
     {
         // 右クリックされたこのグループ(アクティブグループとは限らない)を保存する
         ViewModel?.SaveAsFavorite();
+    }
+
+    private async void RemoveGroup_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        // タブを1個以上持つグループの削除は確認ダイアログを表示する(SPEC Task 6-1)
+        if (ViewModel.HasTabs)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "グループを削除",
+                Content = $"グループ「{ViewModel.Name}」とタブ {ViewModel.Tabs.Count} 個を削除します。よろしいですか?",
+                PrimaryButtonText = "削除",
+                CloseButtonText = "キャンセル",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            AutomationProperties.SetAutomationId(dialog, "RemoveGroupConfirmDialog");
+
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            {
+                return;
+            }
+        }
+
+        // 最後の1グループの削除拒否などは ViewModel 側で OperationError を設定する
+        ViewModel.RemoveGroup();
     }
 
     private void TabItem_Tapped(object sender, TappedRoutedEventArgs e)

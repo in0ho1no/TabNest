@@ -105,15 +105,43 @@ public class GroupOperationTests
 
     [UiFact]
     [Trait("Category", "UITest")]
+    public void RemoveGroup_With_Tabs_Should_Confirm_And_Delete()
+    {
+        var (settings, session) = LaunchAtInitialState();
+        using (settings)
+        using (session)
+        {
+            // 作業2 を追加(削除対象。最後の1グループは削除できないため2段にする)
+            UiActions.SendShortcut(session, Keys.Control, "g");
+            UiActions.WaitForGroupCount(session, 2);
+
+            // 作業2 のグループ名を右クリックし、「グループを削除」を AutomationId で実行する
+            var work2 = session.Driver.FindElementsByAccessibilityId("GroupNameText").ElementAt(1);
+            UiActions.InvokeContextMenuItem(session, work2, "RemoveGroupMenuItem");
+
+            // タブを持つグループなので確認ダイアログが出る。「削除」(PrimaryButton)を押す
+            Assert.True(
+                UiActions.WaitUntil(
+                    () => session.Driver.FindElementsByAccessibilityId("RemoveGroupConfirmDialog").Count == 1),
+                "削除確認ダイアログが表示されませんでした。");
+            session.Driver.FindElementByAccessibilityId("PrimaryButton").Click();
+
+            UiActions.WaitForGroupCount(session, 1);
+            Assert.Equal(["作業1"], GroupNames(session));
+        }
+    }
+
+    [UiFact]
+    [Trait("Category", "UITest")]
     public void Favorite_Save_And_Open_Should_Restore_Group()
     {
         var (settings, session) = LaunchAtInitialState();
         using (settings)
         using (session)
         {
-            // グループ名の右クリックメニュー(先頭項目=「お気に入りに保存」)で保存する
+            // グループ名の右クリックメニューで「お気に入りに保存」を AutomationId で実行する
             var groupName = session.Driver.FindElementByAccessibilityId("GroupNameText");
-            UiActions.InvokeFirstContextMenuItem(session, groupName);
+            UiActions.InvokeContextMenuItem(session, groupName, "SaveToFavoritesMenuItem");
 
             Assert.True(
                 UiActions.WaitUntil(
