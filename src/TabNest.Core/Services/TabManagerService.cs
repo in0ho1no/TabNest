@@ -197,6 +197,17 @@ public sealed class TabManagerService
                 "最後のタブグループは削除できません。");
         }
 
+        RemoveGroupCore(group);
+        return TabOperationResult<TabGroup>.Success(group);
+    }
+
+    /// <summary>
+    /// グループを実際に除去し、アクティブグループだった場合のアクティブ追従を行う。
+    /// 削除したグループがアクティブだった場合は先頭の残存グループの選択タブをアクティブにする。
+    /// 呼び出し側で下限(MinGroups)を確認してから使う。
+    /// </summary>
+    private void RemoveGroupCore(TabGroup group)
+    {
         _groups.Remove(group);
 
         if (ActiveGroupId == group.Id)
@@ -210,8 +221,6 @@ public sealed class TabManagerService
                 SetActiveTab(selectedTabId);
             }
         }
-
-        return TabOperationResult<TabGroup>.Success(group);
     }
 
     /// <summary>
@@ -285,13 +294,22 @@ public sealed class TabManagerService
 
     /// <summary>
     /// タブを閉じる。アクティブタブを閉じた場合は同グループ内の隣のタブ
-    /// (次を優先、無ければ前)をアクティブにする。グループが空になった場合は
-    /// アクティブタブなし(null)となる。タブが存在しない場合は false。
+    /// (次を優先、無ければ前)をアクティブにする。閉じた結果グループのタブが0個になった場合は
+    /// その空グループも自動的に閉じる(グループ削除 RemoveGroup と同じアクティブ追従規則に従う)。
+    /// ただしアプリ内の最後の1タブは閉じられず、状態を変更せず false を返す
+    /// (常にタブ1個以上を保持する)。タブが存在しない場合も false。
+    /// 閉じたタブは(自動クローズで消える最後の1タブも含め)ClosedTab 履歴へ積む。
     /// </summary>
     public bool CloseTab(string tabId)
     {
         var group = _groups.FirstOrDefault(g => g.Tabs.Any(t => t.Id == tabId));
         if (group is null)
+        {
+            return false;
+        }
+
+        // アプリ内の最後の1タブは閉じられない(常にタブ1個以上・グループ1段以上を保持する)
+        if (_groups.Sum(g => g.Tabs.Count) <= 1)
         {
             return false;
         }
@@ -311,6 +329,14 @@ public sealed class TabManagerService
         while (_closedTabs.Count > MaxClosedTabs)
         {
             _closedTabs.RemoveAt(0);
+        }
+
+        // 空になったグループの自動クローズ(タブを閉じる操作に限定。D&D 移動は対象外)。
+        // 最後の1タブガードにより、ここに到達する空グループは常に他グループが残る。
+        if (group.Tabs.Count == 0 && _groups.Count > MinGroups)
+        {
+            RemoveGroupCore(group);
+            return true;
         }
 
         if (group.SelectedTabId == tabId)
