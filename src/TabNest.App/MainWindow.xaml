@@ -26,6 +26,22 @@
                 Key="T"
                 Invoked="RestoreClosedTabAccelerator_Invoked"
                 Modifiers="Control,Shift" />
+            <KeyboardAccelerator
+                Key="W"
+                Invoked="CloseActiveTabAccelerator_Invoked"
+                Modifiers="Control" />
+            <KeyboardAccelerator
+                Key="Left"
+                Invoked="NavigateBackAccelerator_Invoked"
+                Modifiers="Menu" />
+            <KeyboardAccelerator
+                Key="Right"
+                Invoked="NavigateForwardAccelerator_Invoked"
+                Modifiers="Menu" />
+            <KeyboardAccelerator
+                Key="Up"
+                Invoked="NavigateUpAccelerator_Invoked"
+                Modifiers="Menu" />
         </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

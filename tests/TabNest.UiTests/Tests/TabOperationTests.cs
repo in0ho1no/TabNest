@@ -129,4 +129,31 @@ public class TabOperationTests
                 $"復元タブのフォルダが表示されませんでした(アドレスバー: {addressBar.Text})。");
         }
     }
+
+    [UiFact]
+    [Trait("Category", "UITest")]
+    public void CtrlW_Should_Close_Active_Tab_And_Restore_With_CtrlShiftT()
+    {
+        var (settings, session) = LaunchAtInitialState();
+        using (settings)
+        using (session)
+        {
+            // タブを追加し(アクティブになる)、サンプルフォルダへ移動する
+            UiActions.SendShortcut(session, Keys.Control, "t");
+            UiActions.WaitForTabCount(session, 2);
+            var samplePath = UiActions.NavigateTo(session, UiTestEnvironment.SampleFolderPath);
+            var addressBar = session.Driver.FindElementByAccessibilityId("PathTextBox");
+
+            // Ctrl+W でアクティブタブを閉じる(中クリックと同一経路で ClosedTab 履歴へ積む)
+            UiActions.SendShortcut(session, Keys.Control, "w");
+            UiActions.WaitForTabCount(session, 1);
+
+            // Ctrl+Shift+T で復元でき、閉じる前のパスが表示される
+            UiActions.SendShortcut(session, Keys.Control + Keys.Shift, "t");
+            UiActions.WaitForTabCount(session, 2);
+            Assert.True(
+                UiActions.WaitUntil(() => addressBar.Text == samplePath),
+                $"Ctrl+W で閉じたタブが Ctrl+Shift+T で復元されませんでした(アドレスバー: {addressBar.Text})。");
+        }
+    }
 }

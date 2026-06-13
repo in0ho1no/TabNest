@@ -168,6 +168,27 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// アクティブタブを閉じる(Ctrl+W)。中クリックでの閉じると同一の経路(CloseTab)を通り、
+    /// ClosedTab 履歴へ積む。最後のタブを閉じた場合の挙動も中クリックに統一する。
+    /// グループ名編集中は何も実行しない(編集状態を維持する)。
+    /// </summary>
+    public bool CloseActiveTab()
+    {
+        if (IsRenameInProgress)
+        {
+            return false;
+        }
+
+        if (_tabManager.ActiveTabId is not string activeId
+            || FindTabViewModel(activeId) is not { } activeVm)
+        {
+            return false;
+        }
+
+        return CloseTab(activeVm);
+    }
+
+    /// <summary>
     /// グループを削除する(グループ名の右クリックメニュー)。最後の1グループは削除できず、
     /// その場合は OperationError を設定して false を返す。削除対象がアクティブグループの場合は
     /// 隣接グループが新しいアクティブになり、そのアクティブタブのフォルダ内容を表示する。
@@ -407,6 +428,31 @@ public sealed class MainViewModel : ViewModelBase
             Folder.ShowFolder(tabVm.Path);
         }
 
+        return true;
+    }
+
+    /// <summary>戻る(Alt+左)。アクティブタブの履歴で戻る操作を行う。</summary>
+    public bool NavigateBack() => InvokeFolderNavigation(Folder.BackCommand);
+
+    /// <summary>進む(Alt+右)。アクティブタブの履歴で進む操作を行う。</summary>
+    public bool NavigateForward() => InvokeFolderNavigation(Folder.ForwardCommand);
+
+    /// <summary>上の階層へ移動する(Alt+上)。</summary>
+    public bool NavigateUp() => InvokeFolderNavigation(Folder.NavigateUpCommand);
+
+    /// <summary>
+    /// 既存のナビゲーションコマンド(戻る/進む/上へ)を Alt 系ショートカットから実行する。
+    /// グループ名編集中は何も実行しない(編集状態を維持する)。コマンド不可(戻る/進む/上へ不可)の
+    /// 状態では実行せず、状態を変更しない。実行した場合のみ true を返す。
+    /// </summary>
+    private bool InvokeFolderNavigation(RelayCommand command)
+    {
+        if (IsRenameInProgress || !command.CanExecute(null))
+        {
+            return false;
+        }
+
+        command.Execute(null);
         return true;
     }
 
