@@ -55,6 +55,54 @@ public sealed class FavoritesService
     public SavedTabGroup? FindFavorite(string id)
         => _savedGroups.FirstOrDefault(f => f.Id == id);
 
+    /// <summary>
+    /// Id をキーにお気に入りをリネームする(Task 6-4)。
+    /// 同名衝突は保存時と同じ規則に従う(名前の完全一致で「&lt;名前&gt; (n)」連番付与・上書きしない・
+    /// ベース名抽出なし)。自分自身の名前は衝突判定から除外するため、同名へのリネームは連番を付けない。
+    /// 該当 Id が無い場合は失敗結果を返す。
+    /// </summary>
+    public TabOperationResult<SavedTabGroup> RenameFavorite(string id, string newName)
+    {
+        var favorite = _savedGroups.FirstOrDefault(f => f.Id == id);
+        if (favorite is null)
+        {
+            return TabOperationResult<SavedTabGroup>.Failure(
+                TabOperationError.FavoriteNotFound,
+                "指定されたお気に入りが見つかりません。");
+        }
+
+        favorite.Name = ResolveUniqueName(newName, excludeId: id);
+        return TabOperationResult<SavedTabGroup>.Success(favorite);
+    }
+
+    /// <summary>
+    /// お気に入りの並び順を指定された Id 順に並べ替える(Task 6-4。手動 D&amp;D の結果を反映)。
+    /// orderedIds に含まれない既存項目は末尾に元の相対順で残し、未知の Id は無視する(防御的)。
+    /// </summary>
+    public void ReorderFavorites(IReadOnlyList<string> orderedIds)
+    {
+        var reordered = new List<SavedTabGroup>(_savedGroups.Count);
+        foreach (var id in orderedIds)
+        {
+            var favorite = _savedGroups.FirstOrDefault(f => f.Id == id);
+            if (favorite is not null && !reordered.Contains(favorite))
+            {
+                reordered.Add(favorite);
+            }
+        }
+
+        foreach (var favorite in _savedGroups)
+        {
+            if (!reordered.Contains(favorite))
+            {
+                reordered.Add(favorite);
+            }
+        }
+
+        _savedGroups.Clear();
+        _savedGroups.AddRange(reordered);
+    }
+
     /// <summary>お気に入りを削除する。存在しない場合は false。</summary>
     public bool RemoveFavorite(string id)
         => _savedGroups.RemoveAll(f => f.Id == id) > 0;
@@ -80,10 +128,15 @@ public sealed class FavoritesService
     /// <summary>
     /// 同名衝突を回避した保存名を決める。同名判定は名前の完全一致で行い、ベース名の抽出はしない
     /// (名前 S が「作業1 (2)」のようにサフィックスを含んでいても S 全体を1つの名前として扱う)。
+    /// <paramref name="excludeId"/> を指定すると、その Id のお気に入りは衝突判定から除外する
+    /// (リネーム時に自分自身を衝突相手とみなさないため)。
     /// </summary>
-    private string ResolveUniqueName(string name)
+    private string ResolveUniqueName(string name, string? excludeId = null)
     {
-        var existing = _savedGroups.Select(f => f.Name).ToHashSet(StringComparer.Ordinal);
+        var existing = _savedGroups
+            .Where(f => f.Id != excludeId)
+            .Select(f => f.Name)
+            .ToHashSet(StringComparer.Ordinal);
         if (!existing.Contains(name))
         {
             return name;

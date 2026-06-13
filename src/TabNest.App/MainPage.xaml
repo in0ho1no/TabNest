@@ -135,7 +135,11 @@
                     <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
                         <ListView
                             x:Name="FavoritesListView"
+                            AllowDrop="True"
                             AutomationProperties.AutomationId="FavoritesListView"
+                            CanDragItems="True"
+                            CanReorderItems="True"
+                            DragItemsCompleted="FavoritesListView_DragItemsCompleted"
                             IsItemClickEnabled="True"
                             ItemClick="FavoritesListView_ItemClick"
                             ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
@@ -155,6 +159,10 @@
                                         <Grid.ContextFlyout>
                                             <MenuFlyout>
                                                 <MenuFlyoutItem
+                                                    AutomationProperties.AutomationId="RenameFavoriteMenuItem"
+                                                    Click="RenameFavorite_Click"
+                                                    Text="名前の変更" />
+                                                <MenuFlyoutItem
                                                     AutomationProperties.AutomationId="DeleteFavoriteMenuItem"
                                                     Click="DeleteFavorite_Click"
                                                     Text="削除" />
@@ -162,8 +170,18 @@
                                         </Grid.ContextFlyout>
                                         <TextBlock
                                             VerticalAlignment="Center"
-                                            Text="{x:Bind Name}"
-                                            TextTrimming="CharacterEllipsis" />
+                                            Text="{x:Bind Name, Mode=OneWay}"
+                                            TextTrimming="CharacterEllipsis"
+                                            Visibility="{x:Bind local:MainPage.VisibleWhenNot(IsEditingName), Mode=OneWay}" />
+                                        <TextBox
+                                            x:Name="FavoriteNameEditBox"
+                                            MinWidth="80"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AutomationId="FavoriteNameEditBox"
+                                            KeyDown="FavoriteNameEditBox_KeyDown"
+                                            LostFocus="FavoriteNameEditBox_LostFocus"
+                                            Text="{x:Bind EditingName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            Visibility="{x:Bind local:MainPage.VisibleWhen(IsEditingName), Mode=OneWay}" />
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
