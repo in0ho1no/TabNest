@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="TabNest.App.Controls.TabGroupRow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:TabNest.App.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:TabNest.ViewModels"
+    AutomationProperties.AutomationId="TabGroupRow"
+    DataContextChanged="OnDataContextChanged"
+    mc:Ignorable="d">
+
+    <Grid Padding="4,2" ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!--  グループ名(ダブルクリックでインライン編集、右クリックでお気に入りに保存)  -->
+        <Grid
+            Grid.Column="0"
+            MinWidth="80"
+            VerticalAlignment="Center">
+            <Grid.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem
+                        AutomationProperties.AutomationId="SaveToFavoritesMenuItem"
+                        Click="SaveToFavorites_Click"
+                        Text="お気に入りに保存" />
+                </MenuFlyout>
+            </Grid.ContextFlyout>
+            <TextBlock
+                x:Name="GroupNameText"
+                Padding="8,4"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="GroupNameText"
+                DoubleTapped="GroupNameText_DoubleTapped"
+                Style="{ThemeResource BodyStrongTextBlockStyle}"
+                Text="{x:Bind ViewModel.Name, Mode=OneWay}"
+                TextTrimming="CharacterEllipsis"
+                Visibility="{x:Bind local:TabGroupRow.VisibleWhenNot(ViewModel.IsEditingName), Mode=OneWay}" />
+            <TextBox
+                x:Name="GroupNameEditBox"
+                MinWidth="80"
+                VerticalAlignment="Center"
+                AutomationProperties.AutomationId="GroupNameEditBox"
+                KeyDown="GroupNameEditBox_KeyDown"
+                LostFocus="GroupNameEditBox_LostFocus"
+                Text="{x:Bind ViewModel.EditingName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsEditingName), Mode=OneWay}" />
+        </Grid>
+
+        <!--  タブ横並び+水平スクロール  -->
+        <ScrollViewer
+            Grid.Column="1"
+            HorizontalScrollBarVisibility="Auto"
+            HorizontalScrollMode="Enabled"
+            VerticalScrollBarVisibility="Hidden"
+            VerticalScrollMode="Disabled">
+            <ItemsControl ItemsSource="{x:Bind ViewModel.Tabs, Mode=OneWay}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="2" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FolderTabViewModel">
+                        <Border
+                            MaxWidth="140"
+                            Padding="10,4"
+                            VerticalAlignment="Center"
+                            Background="{x:Bind local:TabGroupRow.TabBackground(IsActive), Mode=OneWay}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            PointerPressed="TabItem_PointerPressed"
+                            Tapped="TabItem_Tapped"
+                            ToolTipService.ToolTip="{x:Bind Path, Mode=OneWay}">
+                            <!--
+                                AutomationId は Border ではなく TextBlock に付与する
+                                (Border は AutomationPeer を持たず UIA から検索できないため。SPEC Task 5-2)
+                            -->
+                            <TextBlock
+                                AutomationProperties.AutomationId="FolderTabItem"
+                                Foreground="{x:Bind local:TabGroupRow.TabForeground(IsActive), Mode=OneWay}"
+                                Text="{x:Bind Title, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis" />
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

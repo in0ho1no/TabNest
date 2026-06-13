@@ -1,0 +1,207 @@
+# AGENTS.md — AI エージェント作業ルール
+
+本ファイルは、TabNest の実装を AI エージェント（Claude Code / Codex / GitHub Copilot など）に
+任せる際の **進め方のルール** を定める。
+
+* **何を作るか**（仕様・タスク分割）は `docs/SPEC.md` が正である
+* **どう進めるか**（手順・コミット・レビュー）は本ファイルが正である
+* 両者が矛盾する場合は作業を止めてユーザーに確認する
+
+---
+
+## 前提
+
+* 開発は SPEC.md の Task を **0 からやり直す**。
+  過去に作成された `Task3-1` などの旧ブランチの成果物は引き継がない。
+  旧実装を参照・流用したい場合は、事前にユーザーの承認を得ること。
+* Task に着手する前に、SPEC.md の該当 Task と関連する仕様節
+  （画面レイアウト・主要機能・データモデル）を必ず読むこと。
+* 仕様の不明点・矛盾を見つけた場合は、推測で実装せずユーザーに確認する。
+
+---
+
+## ブランチ運用
+
+```text
+main    : リリース用
+dev-re  : 統合ブランチ（develop 相当）
+TaskX-Y : Task 単位の作業ブランチ（例: Task1-1, Task3-7）
+```
+
+* 既存の `dev-Fable` ブランチは**別用途で使用中のため、触らない**（チェックアウト・マージ・削除すべて禁止）
+
+* `dev-re` が存在しない場合は、最初に `main` から作成する（Task 0 リセット後の初回のみ）
+* 作業ブランチは必ず `dev-re` から `TaskX-Y` 形式で作成する
+* `dev-re` および `main` への直接コミットは禁止
+* Task 完了後に `dev-re` へマージする
+* `dev-re` へのマージ完了後、当該 `TaskX-Y` ブランチは削除する
+  （remote に push 済みなら remote ブランチも削除する）
+* ブランチ削除は `Task[0-9]+-[0-9]+` 形式の当該 Task ブランチに限定する。
+  `main` / `dev-re` / `dev-Fable` / `feedback` など、TaskX-Y 以外のブランチを誤って削除しないよう必ず確認する
+* `git push --force` / `git reset --hard` / ブランチ・タグの削除は、
+  上記の Task 完了後の当該 TaskX-Y ブランチ削除を除き、ユーザーの明示的な承認なしに実行しない
+
+---
+
+## タスクの進め方（標準手順）
+
+各 Task は以下の手順で進める。
+
+```text
+1. SPEC.md の該当 Task を読み、作業範囲と完了条件を確認する
+2. git status と origin/dev-re の取得・確認後、dev-re から TaskX-Y ブランチを作成してチェックアウトする
+3. 実装する
+   - SPEC.md に書かれた範囲のみ実装する（仕様の勝手な拡張・変更をしない）
+   - 新規機能には必ず単体テストまたは結合テストを追加する
+   - UI 要素には AutomationId を付与する
+4. dotnet build TabNest.slnx と dotnet test TabNest.slnx を実行し、成功を確認する
+5. GUI 要素を追加・変更した Task は、コミット前に GUI 評価を実施する
+   - WinAppDriver + Appium の UI テスト、または UI 自動操作での動作確認
+   - 「実装したが画面上は想定と違う」を防ぐため、見た目と挙動を必ず確認する
+6. コミットする（後述のコミットルールに従う）
+7. 実装に使用したモデルとは別のモデルでコードレビューを行う（後述）
+8. レビュー指摘を修正し、再度 build / test を通してコミットする
+9. TaskX-Y ブランチを push し、可能であれば CI を確認する
+   - CI が失敗したら TaskX-Y 内で修正する。仕様・ロジック変更は build / test / review / CI を、
+     挙動を変えない軽微な CI-only 修正（Release 警告・アナライザ・スキップ調整等）は build / test / CI を通す（review は省略可）
+   - ループ防止: 原因不明・同じ失敗の繰り返し、または CI 赤が同一タスクで通算 3 回を超えたら、
+     churn せずユーザーに報告して指示を仰ぐ（flaky 疑いは修正せず 1 回だけ再実行で切り分ける）
+10. dev-re へマージし、push 後に dev-re の CI を確認する
+11. 当該 TaskX-Y ブランチのみを削除し、TaskX-Y 以外を削除していないことを確認して結果を報告する
+```
+
+* 既存テストが失敗した場合は、**実装を止めて原因を説明する**。
+  テストを安易に修正・削除して通さない。
+* 手順 4 の build / test が失敗した状態でコミットしない。
+
+---
+
+## コミットルール
+
+* コミットメッセージは日本語とし、`git-setup/COMMIT_TEMPLATE` の形式に従う
+
+```text
+表題: 簡潔に1行（先頭に Task 番号を付ける）
+（空行）
+内容: 2〜3行程度（何を・なぜ）
+```
+
+例:
+
+```text
+Task2-1: FileSystemService を作成
+
+IFileSystemService と実装クラスを追加し、フォルダ内の一覧取得を実装した。
+一時フォルダを使った結合テストを追加した。
+```
+
+* テンプレートの文言（「テンプレ消してね」）を残すと commit-msg フックで拒否される
+* 本文に **実装に使用した AI モデル名** を記録する（クロスモデルレビューの判定に使う）
+* 1 Task 内でも、意味のある単位（実装／テスト追加／レビュー修正）でコミットを分けてよい
+* フックの回避（`--no-verify` など）は禁止
+* コミット・push はユーザーの指示または本手順に定めた範囲でのみ行う
+* **コミットメッセージはファイルに書いて `git commit -F <tempfile>` で渡す**。
+  PowerShell の here-string（`@'...'@`）で `-m` に複数行を渡すと、稀に引数が分割されて
+  `error: pathspec '...' did not match` で失敗するため（実際に発生）。記号・改行に左右されず確実。
+
+---
+
+## クロスモデルレビュー
+
+過去の開発で単一モデルの自己レビューでは品質が確保できなかったため、
+**実装したモデルとは異なるモデル**でレビューを行う。
+
+* 例: Claude（Fable / Sonnet）で実装 → Opus または Codex（GPT 系）でレビュー
+* レビュー対象: 当該 Task の差分（`git diff dev-re...TaskX-Y`）
+* **`cross-model-reviewer` エージェント（Opus）を使う**。レビュー全文は `docs/reviews/` に直接書かせ、
+  呼び出し元には判定＋対応必須の指摘だけを簡潔に返させる（メイン文脈にレビュー全文を貯めない）
+
+レビュー観点:
+
+```text
+- SPEC.md の仕様・完了条件を満たしているか
+- 仕様外の変更・拡張をしていないか
+- MVVM の層分離（ViewModels / Core が WinUI 非依存か、テストから App を参照していないか）
+- テストが実装の正しさを実際に検証しているか（形だけのテストでないか）
+- 状態整合性（表示中パス・一覧・履歴・コマンド可否が常に一致するか、失敗時に巻き戻るか）
+- エラー処理（存在しないパス・アクセス拒否でクラッシュしないか）
+- AutomationId の付与漏れ
+```
+
+* レビュー結果は `docs/reviews/TaskX-Y.md` に記録する
+  （指摘一覧、対応した/しなかったの判断と理由を残す）
+* 指摘の修正後、修正コミットを行ってから dev-re へマージする
+
+---
+
+## ビルド・テストの基本コマンド
+
+```powershell
+dotnet build TabNest.slnx                 # Debug ビルド
+dotnet test  TabNest.slnx                 # 全テスト実行
+dotnet run --project src/TabNest.App/TabNest.App.csproj -p:Platform=x64   # アプリ起動
+powershell -File scripts/ci-status.ps1 dev-re   # GitHub Actions CI 結果を確認（gh 不要・未認証可）
+```
+
+* ソリューションは `.slnx`（.NET 10 新形式）を使用する。`.sln` は作成しない
+* GUI テストの実行手順・サンドボックスポリシーは SPEC.md の「Level 3: GUI自動テスト」に従う
+* **TaskX-Y ブランチを push 後、可能であれば dev-re マージ前に CI を確認する**:
+  `powershell -File scripts/ci-status.ps1 <branch>`
+  （対象ブランチ HEAD の run が success なら exit 0 / 失敗 1 / 進行中・未実行 2。
+  green でなければ TaskX-Y ブランチ内で修正し、必要なら再レビューする）
+* **dev-re への push 後・main マージ前にも CI を確認する**:
+  `powershell -File scripts/ci-status.ps1 dev-re`
+  （green でなければ調査し、必要な修正方針を決めてから main へ進める）
+
+---
+
+## ロングセッション運用とコスト最適化
+
+長時間セッションでは「文脈の貯め込み」によるキャッシュ読込コストが支配的になる
+（根拠と実測は `knowledge.md` / `COST.md`）。Agent に作業を任せるときは以下に従う。
+
+* **タスク境界で `/clear`、状態は `MEMORY.md` で持ち越す。コンパクションは使わない**
+  （`/clear` の方が確実で細部を失わない）。13 タスクを 1 セッションで通さない。
+* **重い・隔離できる作業はサブエージェントへ出す**（探索・GUI 評価・レビュー・大量検索）。
+  オーケストレータ（メイン）は痩せたまま委譲と統合に徹する。
+* **サブエージェントの戻り値は要約。成果物（レビュー・スクショ・ログ）はファイルに書かせ、判定文だけ返させる。**
+* **モデルはサブエージェント単位でルーティング**（検索=Haiku/Explore、中程度=Sonnet、レビュー=Opus、最難=Fable）。
+  1 本の会話の途中でモデルを切り替えない（キャッシュ無効化）。
+* **ビルド/テスト出力は最小 verbosity、ファイルは必要範囲だけ読む**（出力が文脈に残り再読込される）。
+
+用意済みの道具:
+* `.claude/agents/cross-model-reviewer.md`（Opus・レビュー） / `gui-evaluator.md`（Sonnet・GUI 評価）
+* `.claude/agents/build-test-runner.md`（Sonnet・`dotnet build/test` 実行と要約返し。冗長ログをメインに入れない）
+* `.claude/skills/winui-uitest/`（WinAppDriver/UIA 手順）/ `.claude/skills/task-workflow/`（タスク標準フロー）
+* `scripts/ci-status.ps1`（GitHub Actions CI 結果の確認。gh 不要・ゲート用に exit code を返す）
+* 補足: `git`/`gh` など小出力コマンドは委譲せずインライン実行する（委譲はコールドスタート分だけ割高）
+
+---
+
+## 禁止事項（要ユーザー承認）
+
+以下はエージェントの判断だけで行わず、必ずユーザーに確認する。
+
+```text
+- SPEC.md（仕様）の変更
+- 依存パッケージの追加
+- 複数 Task にまたがる実装・大規模リファクタ
+- 設定ファイル・CI・開発フローの変更
+- テストプロジェクトから TabNest.App への参照追加（恒久的に禁止）
+- TestFixtures/ 以外への書き込みを伴う GUI テストの追加
+- force push・Task 完了後の当該 TaskX-Y 以外のブランチ削除・履歴改変
+```
+
+---
+
+## Task 完了の定義
+
+SPEC.md の「Definition of Done」に従う。要約:
+
+```text
+- 実装が完了し、対応するテストがある
+- dotnet build / dotnet test が成功する
+- 仕様外の大きな変更をしていない
+- GUI 関連 Task は AutomationId 付与と GUI 評価が済んでいる
+- クロスモデルレビューと指摘対応が完了している
+```

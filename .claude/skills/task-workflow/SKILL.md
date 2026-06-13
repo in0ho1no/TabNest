@@ -1,0 +1,68 @@
+---
+name: task-workflow
+description: dev-re トラックで SPEC.md の TaskX-Y を 1 件、最初から最後まで（ブランチ作成→実装→テスト→GUI評価→クロスモデルレビュー→マージ→push→メモリ更新）進めるときの標準手順チェックリスト。/clear+メモリ運用で各タスクを新セッションで進める前提。正本のルールは AGENTS.md。
+---
+
+# タスク標準フロー（dev-re トラック）
+
+SPEC.md の Task を 1 件こなす標準手順。**コスト最適化（サブエージェント委譲・要約返し）を織り込み済み**。
+ルールの正本は `AGENTS.md`、仕様の正本は `SPEC.md`。矛盾があれば止めてユーザーに確認。
+
+## 手順
+
+1. **着手準備（メインは痩せたまま）**
+   - SPEC.md の該当 Task と関連節（画面レイアウト・主要機能・データモデル）を読む。
+   - 関連メモリ（MEMORY.md・該当ファイル）を確認。重い探索が要れば `Explore`/Haiku サブに委譲。
+   - `git status` で未整理の変更がないか確認し、`git fetch origin dev-re` 後にローカル `dev-re` を
+     `origin/dev-re` へ fast-forward してから `git checkout -b TaskX-Y dev-re` で作業ブランチを作成。
+
+2. **実装**
+   - SPEC に書かれた範囲のみ実装（勝手な拡張をしない）。
+   - 新規機能に単体/結合テストを追加。UI 要素に AutomationId を付与（UIA 可視化は `winui-uitest` Skill）。
+
+3. **ビルド/テスト** — `build-test-runner` サブ（Sonnet）に `dotnet build/test` を委譲し、**合否・件数・失敗要点だけ**受ける。
+   失敗が状態整合・複雑なら自分で詳細を確認。失敗状態でコミットしない。
+
+4. **GUI 評価**（GUI 要素を追加・変更した Task のみ） — `gui-evaluator` サブ（Sonnet）に委譲。判定文だけ受ける。
+
+5. **実装コミット** — `git commit -F <tempfile>`（PowerShell の here-string 事故を避ける）。
+   メッセージは日本語・先頭に Task 番号・本文に実装モデル名。意味のある単位で分けてよい。フック回避禁止。
+
+6. **クロスモデルレビュー** — `cross-model-reviewer` サブ（Opus）に委譲。
+   レビュー全文は `docs/reviews/TaskX-Y.md` に書かせ、**判定＋対応必須の指摘だけ**受ける。
+
+7. **指摘修正** → 3 を再実行（`build-test-runner`）→ **レビュー対応コミット**（`git commit -F`）。
+   `docs/reviews/TaskX-Y.md` に対応/未対応の判断も追記。
+
+8. **TaskX-Y ブランチを push / CI 確認** — 既存のユーザー指示または実行環境の許可に従って
+   `git push origin TaskX-Y` し、可能であれば `powershell -File scripts/ci-status.ps1 TaskX-Y` で
+   対象 HEAD の green を確認する。赤なら TaskX-Y 内で修正する。**再実行範囲は修正の性質で変える**:
+   - **仕様・ロジックに関わる修正** → 3（build/test）→ 6・7（再レビュー）→ 8 をやり直す。
+   - **挙動を変えない軽微な CI-only 修正**（Release 固有の警告・アナライザ・スキップ調整など）
+     → 3 → 8 で足り、フル再レビュー（6）は省いてよい（無駄な Opus spawn を避ける）。
+   - **ループ防止（重要）**: 回数より「理解して収束しているか」で判断する。
+     - 原因を特定できない／同じ失敗が繰り返すなら、回数に関わらず即ユーザーに報告して指示を仰ぐ。
+     - 各回が別個の理解済みの問題を潰して収束しているなら続行可。
+     - ハード上限: 同一タスクで CI 赤が通算 3 回を超えたら必ず止めて報告。
+     - flaky 疑い（UI テスト等）は「修正」せず 1 回だけ再実行で切り分け、再現したら調査・報告。
+   （review の省略可・ループ防止は AGENTS.md 手順 9 も同旨。）
+
+9. **dev-re へマージ** — `git checkout dev-re; git merge --no-ff TaskX-Y -m '...'; git push origin dev-re`。
+   force push・履歴改変はユーザー承認なしに行わない。
+   push 後に **CI を確認**: `powershell -File scripts/ci-status.ps1 dev-re`
+   （green を確認。赤なら調査し、必要な修正方針を決めてから main へ進める）。
+
+10. **TaskX-Y ブランチ削除** — dev-re へのマージ完了後、当該 Task ブランチだけを削除する。
+    削除前にブランチ名が `Task[0-9]+-[0-9]+` 形式で、今回完了した TaskX-Y と一致することを確認する。
+    `main` / `dev-re` / `dev-Fable` / `feedback` など、TaskX-Y 以外のブランチは誤って削除しない。
+    remote に push 済みなら remote の当該 TaskX-Y ブランチも削除する。
+
+11. **メモリ更新** — 進捗・決定事項・新知見を MEMORY.md と該当ファイルに記録。
+
+12. **`/clear`** して次タスクへ（コンパクションは使わない。状態はメモリで持ち越す）。
+
+## 委譲の指針（コスト）
+- 重い・隔離できる作業（探索・GUI 評価・レビュー・大量出力のビルド/テスト）はサブへ。メインは委譲と統合に徹する。
+- サブの戻り値は要約、成果物はファイル（レビュー→docs/reviews、スクショ→サブ内、ログ→要約）。
+- `git`/`gh` など小出力コマンドは委譲せずインライン実行。
+- 詳細は `knowledge.md` と `AGENTS.md`「ロングセッション運用とコスト最適化」。

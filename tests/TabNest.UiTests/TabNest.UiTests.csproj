@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Appium.WebDriver は 4.x を使用する(Apache-2.0。ユーザー承認済み 2026-06-12)。
+      WinAppDriver 1.2 は旧 JSON Wire Protocol のみ対応のため、
+      W3C 専用となる Appium.WebDriver 5.x 以降には更新しないこと。
+    -->
+    <PackageReference Include="Appium.WebDriver" Version="4.3.1" />
+    <!--
+      Appium 4.x の推移的依存 System.Drawing.Common 4.5.1 には既知のクリティカル脆弱性
+      (GHSA-rxg9-xrhp-64gj)があるため、安全なバージョンへ直接参照で上書きする(MIT)。
+    -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--  ナビゲーションテスト用サンドボックス(SPEC: GUI テストの実フォルダ参照は TestFixtures/ 以下のみ)  -->
+    <Content Include="TestFixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    注意: TabNest.App への ProjectReference を追加してはならない(AGENTS.md 恒久禁止)。
+    UI テストは WinAppDriver 経由でインストール済みパッケージ(AUMID)を起動して操作する。
+    Core の参照はテスト用 settings.json を DTO(AppSettings)から型安全に生成するためのみに使う。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TabNest.Core\TabNest.Core.csproj" />
+  </ItemGroup>
+
+</Project>

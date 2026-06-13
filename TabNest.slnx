@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TabNest.App/TabNest.App.csproj" />
+    <Project Path="src/TabNest.Core/TabNest.Core.csproj" />
+    <Project Path="src/TabNest.ViewModels/TabNest.ViewModels.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TabNest.Core.Tests/TabNest.Core.Tests.csproj" />
+    <Project Path="tests/TabNest.Integration.Tests/TabNest.Integration.Tests.csproj" />
+    <Project Path="tests/TabNest.UiTests/TabNest.UiTests.csproj" />
+    <Project Path="tests/TabNest.ViewModels.Tests/TabNest.ViewModels.Tests.csproj" />
+  </Folder>
+</Solution>

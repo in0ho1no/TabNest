@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+## ライセンス
+
+無償で商用利用可能なライセンスのみ利用すること。
+ライセンスが確認できない場合や有償ライセンスしか存在しない場合、条件付きのライセンスの場合は必ずユーザに確認をとってください。
+
 ## セキュリティポリシー
 
 このプロジェクトに対する操作で、以下のルールを必ず守ること。
@@ -39,3 +44,66 @@
   - 設定ファイルや開発フローの変更
 - 検索で`rg`を使う場合は最初に利用可否を確認し、利用不可なら以降は`rg`を使わず、組み込み検索または標準コマンドで検索すること。
 - 変更後は影響範囲に応じて必要最小限の検証を行う
+
+## TabNest プロジェクト構成（重要）
+
+### ソリューションファイル
+- `TabNest.slnx`（.NET 10 新形式）を使用する。`.sln` は存在しない。
+- ビルド・テストは必ずソリューション単位で実行する。
+
+```powershell
+dotnet build TabNest.slnx               # Debug（デフォルト）
+dotnet build TabNest.slnx --configuration Release
+dotnet test  TabNest.slnx               # 全テストプロジェクトを対象
+```
+
+### プロジェクト構成とテスト方針
+
+| プロジェクト | TFM | 役割 |
+|---|---|---|
+| `src/TabNest.App` | net10.0-windows10.0.26100.0 | WinUI 3 エントリポイント・View |
+| `src/TabNest.ViewModels` | net10.0 | ViewModel 層（WinUI 非依存） |
+| `src/TabNest.Core` | net10.0 | Model・Service・Interface |
+| `tests/TabNest.ViewModels.Tests` | net10.0 | ViewModel 単体テスト |
+| `tests/TabNest.Core.Tests` | net10.0 | Core 単体テスト |
+| `tests/TabNest.Integration.Tests` | net10.0 | 結合テスト（一時フォルダでの実ファイル操作） |
+| `tests/TabNest.UiTests` | net10.0-windows10.0.26100.0 | GUI 自動テスト（Appium。アプリプロジェクトは参照しない） |
+
+プロジェクト構成・参照方向の正は `docs/SPEC.md` の「プロジェクト構成」節、
+開発フロー（ブランチ・コミット・レビュー）の正は `AGENTS.md` を参照すること。
+
+**テストプロジェクトから `TabNest.App` を直接参照してはならない。**
+WinRT auto-initializer（`Microsoft.WindowsAppSDK.Foundation`）がアセンブリロード時に発火し、
+WinUI ランタイムコンテキスト外では必ず失敗する。
+ViewModel のテストは `TabNest.ViewModels.Tests → TabNest.ViewModels` の参照で行う。
+
+### 名前空間ルール
+- `TabNest.App.csproj` の `<RootNamespace>` は `TabNest.App`（アンダースコアなし）
+- XAML の `x:Class` / `xmlns:local` も `TabNest.App` 系で統一
+
+### Release ビルドの注意
+- `<PublishTrimmed>` / `<PublishReadyToRun>` は `TabNest.App.csproj` から除去済み。
+  `dotnet build --configuration Release` では trimming は実行されない。
+  配布時に `dotnet publish` でオプション指定する。
+
+### BuildAndRun.ps1 の制限
+- `BuildAndRun.ps1` は Visual Studio の MSBuild（.NET 9 SDK 同梱）を優先するため、
+  `.NET 10` プロジェクトのビルドに失敗する場合がある。
+  その場合は `dotnet run --project src/TabNest.App/TabNest.App.csproj -p:Platform=x64` を使う。
+
+---
+
+## WinUI 3 開発ルール
+
+- WinUI 3 と UWP・WPF などの旧スタックを混同しないこと。名前空間・API・実行モデルが異なるため、常に WinUI 3 / Windows App SDK のコンテキストで回答・実装すること。
+- 以下のスキルが利用可能な場合は、該当する作業で積極的に活用すること。
+
+| スキル | 使うタイミング |
+|--------|---------------|
+| `winui-dev-workflow` | ビルド・実行・エラー修正 |
+| `winui-design` | XAML UI 設計・Fluent Design・アクセシビリティ |
+| `winui-code-review` | コミット前のコード品質レビュー |
+| `winui-ui-testing` | 自動 UI テスト作成・実行 |
+| `winui-packaging` | MSIX パッケージング・署名・配布 |
+| `winui-wpf-migration` | WPF → WinUI 3 移行作業 |
+| `winui-setup` | 開発環境の初期セットアップ（明示的に `/winui-setup` で呼び出す） |
