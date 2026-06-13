@@ -463,6 +463,42 @@ public sealed class MainViewModel : ViewModelBase
         => _tabManager.ReorderTabs(groupId, orderedIds);
 
     /// <summary>
+    /// タブを別グループへ移動する(グループ間 D&amp;D。Task 7-2)。<paramref name="tab"/> を
+    /// 移動先グループの <paramref name="insertIndex"/> の位置へ移し、Core のモデルと
+    /// 表示順(各グループの Tabs)を同じ順序へ同期する。移動先グループのタブ上限(20)到達時は
+    /// 移動せず OperationError を設定して false を返す。移動元が空になってもグループは維持する
+    /// (空グループの自動クローズは「タブを閉じる」操作に限定。SPEC Task 7-2)。
+    /// 移動したタブがアクティブだった場合は移動先グループで引き続きアクティブになる
+    /// (タブの同一性・履歴・表示中フォルダは変わらないため、フォルダの再読み込みは行わない)。
+    /// 同一グループ内の移動は受け付けない(並べ替えは <see cref="ReorderTabsInGroup"/> を使う)。
+    /// </summary>
+    public bool MoveTabToGroup(FolderTabViewModel tab, string targetGroupId, int insertIndex)
+    {
+        var sourceGroupVm = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
+        var targetGroupVm = Groups.FirstOrDefault(g => g.Id == targetGroupId);
+        if (sourceGroupVm is null || targetGroupVm is null
+            || ReferenceEquals(sourceGroupVm, targetGroupVm))
+        {
+            return false;
+        }
+
+        var result = _tabManager.MoveTabToGroup(tab.Id, targetGroupId, insertIndex);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        // 表示順を Core と同じ位置へ同期する(Core と同一の補正で挿入位置を一致させる)
+        sourceGroupVm.Tabs.Remove(tab);
+        var clamped = Math.Clamp(insertIndex, 0, targetGroupVm.Tabs.Count);
+        targetGroupVm.Tabs.Insert(clamped, tab);
+        ApplyActiveStates();
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
     /// お気に入りを新しい段として開く。開いたグループの名前はお気に入りの名前を引き継ぎ、
     /// 先頭のタブをアクティブにしてそのフォルダを表示する(存在しないパスはエラー表示で開く)。
     /// 5段上限到達時は開かずエラーを表示する。グループ名編集中は何も実行しない。
@@ -661,7 +697,8 @@ public sealed class MainViewModel : ViewModelBase
             () => SaveGroupAsFavorite(group.Id),
             () => RemoveGroup(group.Id),
             tab => DuplicateTab(tab),
-            orderedIds => ReorderTabsInGroup(group.Id, orderedIds));
+            orderedIds => ReorderTabsInGroup(group.Id, orderedIds),
+            (source, insertIndex) => MoveTabToGroup(source, group.Id, insertIndex));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。
