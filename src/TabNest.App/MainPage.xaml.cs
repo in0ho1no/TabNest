@@ -84,13 +84,18 @@ public sealed partial class MainPage : Page
     private void FolderTreeView_Loaded(object sender, RoutedEventArgs e)
     {
         var innerList = FindDescendant<TreeViewList>(FolderTreeView);
-        // 内部構造が変わって取得できなくなった場合は ElementDiscoveryTests でも検出されるが、
-        // 開発中に気付けるようアサートしておく
-        System.Diagnostics.Debug.Assert(innerList is not null, "TreeViewList が見つかりません(FolderTreeView の AutomationId を設定できません)");
-        if (innerList is not null)
+        if (innerList is null)
         {
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(innerList, "FolderTreeView");
+            // フォルダツリー非表示(Collapsed。Task 6-5 のトグル)では内部の TreeViewList が
+            // 未実体化のため見つからないのは正常。表示中なのに見つからない場合のみ、
+            // 内部構造変化(ElementDiscoveryTests でも検出)を開発中に気付けるようアサートする。
+            System.Diagnostics.Debug.Assert(
+                FolderTreeView.Visibility == Visibility.Collapsed,
+                "TreeViewList が見つかりません(FolderTreeView の AutomationId を設定できません)");
+            return;
         }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(innerList, "FolderTreeView");
     }
 
     private static T? FindDescendant<T>(DependencyObject root)

@@ -454,6 +454,15 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// グループ内のタブを指定された Id 順に並べ替える(グループ内 D&amp;D。Task 7-1)。
+    /// TabManagerService の TabGroup.Tabs を表示順(TabGroupViewModel.Tabs)と同じ順序へ同期する
+    /// (順序は次回起動時に settings.json から復元される)。タブの同一性は変わらないため
+    /// アクティブタブ・選択状態は保持される。
+    /// </summary>
+    public void ReorderTabsInGroup(string groupId, IReadOnlyList<string> orderedIds)
+        => _tabManager.ReorderTabs(groupId, orderedIds);
+
+    /// <summary>
     /// お気に入りを新しい段として開く。開いたグループの名前はお気に入りの名前を引き継ぎ、
     /// 先頭のタブをアクティブにしてそのフォルダを表示する(存在しないパスはエラー表示で開く)。
     /// 5段上限到達時は開かずエラーを表示する。グループ名編集中は何も実行しない。
@@ -651,7 +660,8 @@ public sealed class MainViewModel : ViewModelBase
             tab => CloseTab(tab),
             () => SaveGroupAsFavorite(group.Id),
             () => RemoveGroup(group.Id),
-            tab => DuplicateTab(tab));
+            tab => DuplicateTab(tab),
+            orderedIds => ReorderTabsInGroup(group.Id, orderedIds));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。

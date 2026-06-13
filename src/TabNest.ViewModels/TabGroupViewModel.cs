@@ -14,6 +14,7 @@ public sealed class TabGroupViewModel : ViewModelBase
     private readonly Action<FolderTabViewModel>? _duplicateTab;
     private readonly Action? _saveAsFavorite;
     private readonly Action? _removeGroup;
+    private readonly Action<IReadOnlyList<string>>? _reorderTabs;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
@@ -24,7 +25,8 @@ public sealed class TabGroupViewModel : ViewModelBase
         Action<FolderTabViewModel>? closeTab = null,
         Action? saveAsFavorite = null,
         Action? removeGroup = null,
-        Action<FolderTabViewModel>? duplicateTab = null)
+        Action<FolderTabViewModel>? duplicateTab = null,
+        Action<IReadOnlyList<string>>? reorderTabs = null)
     {
         _model = model;
         _selectTab = selectTab;
@@ -32,6 +34,7 @@ public sealed class TabGroupViewModel : ViewModelBase
         _saveAsFavorite = saveAsFavorite;
         _removeGroup = removeGroup;
         _duplicateTab = duplicateTab;
+        _reorderTabs = reorderTabs;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -57,6 +60,60 @@ public sealed class TabGroupViewModel : ViewModelBase
 
     /// <summary>このグループがタブを1個以上持つか(削除時の確認ダイアログ要否の判定に使う)。</summary>
     public bool HasTabs => Tabs.Count > 0;
+
+    /// <summary>
+    /// グループ内 D&amp;D でタブを並べ替える(Task 7-1)。<paramref name="insertIndex"/> は
+    /// 移動前のリスト座標における挿入位置(その位置にあるタブの直前へ挿入する。Count なら末尾)。
+    /// 表示順(Tabs)とモデル(TabGroup.Tabs)の双方を同じ順序へ更新する。
+    /// タブの同一性は変わらないためアクティブタブ・選択状態は保持される。
+    /// 並べ替えが発生した場合は true、対象外・位置変化なしの場合は false を返す。
+    /// </summary>
+    public bool MoveTab(FolderTabViewModel source, int insertIndex)
+    {
+        ClearDropIndicators();
+
+        var oldIndex = Tabs.IndexOf(source);
+        if (oldIndex < 0)
+        {
+            return false;
+        }
+
+        // 挿入位置を移動前座標で受け取り、source 自身を取り除いた後の座標へ補正する
+        var newIndex = insertIndex > oldIndex ? insertIndex - 1 : insertIndex;
+        newIndex = Math.Clamp(newIndex, 0, Tabs.Count - 1);
+        if (newIndex == oldIndex)
+        {
+            return false;
+        }
+
+        Tabs.Move(oldIndex, newIndex);
+        _reorderTabs?.Invoke(Tabs.Select(t => t.Id).ToList());
+        return true;
+    }
+
+    /// <summary>
+    /// グループ内 D&amp;D 中の挿入位置インジケータを設定する(Task 7-1)。
+    /// 指定タブの直前(<paramref name="after"/> が false)または直後(true)に1か所だけ表示し、
+    /// 他のタブのインジケータはすべて消す。<paramref name="target"/> が null なら全消去する。
+    /// </summary>
+    public void SetDropIndicator(FolderTabViewModel? target, bool after)
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.IsDropBefore = !after && ReferenceEquals(tab, target);
+            tab.IsDropAfter = after && ReferenceEquals(tab, target);
+        }
+    }
+
+    /// <summary>グループ内 D&amp;D 終了時に挿入位置インジケータをすべて消す(Task 7-1)。</summary>
+    public void ClearDropIndicators()
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.IsDropBefore = false;
+            tab.IsDropAfter = false;
+        }
+    }
 
     public string Id => _model.Id;
 
