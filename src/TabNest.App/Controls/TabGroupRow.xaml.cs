@@ -130,6 +130,16 @@ public sealed partial class TabGroupRow : UserControl
         ViewModel.RemoveGroup();
     }
 
+    private void DuplicateTab_Click(object sender, RoutedEventArgs e)
+    {
+        // ContextFlyout の MenuFlyoutItem は所属タブ(Border)の DataContext を引き継ぐため、
+        // 右クリックされたタブを sender の DataContext から特定する
+        if (sender is FrameworkElement { DataContext: FolderTabViewModel tab })
+        {
+            ViewModel?.DuplicateTab(tab);
+        }
+    }
+
     private void TabItem_Tapped(object sender, TappedRoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: FolderTabViewModel tab })

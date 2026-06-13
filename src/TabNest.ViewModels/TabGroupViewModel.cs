@@ -11,6 +11,7 @@ public sealed class TabGroupViewModel : ViewModelBase
     private readonly TabGroup _model;
     private readonly Action<FolderTabViewModel>? _selectTab;
     private readonly Action<FolderTabViewModel>? _closeTab;
+    private readonly Action<FolderTabViewModel>? _duplicateTab;
     private readonly Action? _saveAsFavorite;
     private readonly Action? _removeGroup;
     private string _name;
@@ -22,13 +23,15 @@ public sealed class TabGroupViewModel : ViewModelBase
         Action<FolderTabViewModel>? selectTab = null,
         Action<FolderTabViewModel>? closeTab = null,
         Action? saveAsFavorite = null,
-        Action? removeGroup = null)
+        Action? removeGroup = null,
+        Action<FolderTabViewModel>? duplicateTab = null)
     {
         _model = model;
         _selectTab = selectTab;
         _closeTab = closeTab;
         _saveAsFavorite = saveAsFavorite;
         _removeGroup = removeGroup;
+        _duplicateTab = duplicateTab;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -42,6 +45,9 @@ public sealed class TabGroupViewModel : ViewModelBase
 
     /// <summary>タブを中クリックで閉じる(親 ViewModel に委譲)。</summary>
     public void CloseTab(FolderTabViewModel tab) => _closeTab?.Invoke(tab);
+
+    /// <summary>タブを複製する(タブの右クリックメニュー。親 ViewModel に委譲)。</summary>
+    public void DuplicateTab(FolderTabViewModel tab) => _duplicateTab?.Invoke(tab);
 
     /// <summary>このグループをお気に入りに保存する(グループ名の右クリックメニュー。親 ViewModel に委譲)。</summary>
     public void SaveAsFavorite() => _saveAsFavorite?.Invoke();
