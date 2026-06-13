@@ -62,7 +62,10 @@ TaskX-Y : Task 単位の作業ブランチ（例: Task1-1, Task3-7）
 7. 実装に使用したモデルとは別のモデルでコードレビューを行う（後述）
 8. レビュー指摘を修正し、再度 build / test を通してコミットする
 9. TaskX-Y ブランチを push し、可能であれば CI を確認する
-   - CI が失敗した場合は TaskX-Y ブランチ内で修正し、再度 build / test / review / CI を通す
+   - CI が失敗したら TaskX-Y 内で修正する。仕様・ロジック変更は build / test / review / CI を、
+     挙動を変えない軽微な CI-only 修正（Release 警告・アナライザ・スキップ調整等）は build / test / CI を通す（review は省略可）
+   - ループ防止: 原因不明・同じ失敗の繰り返し、または CI 赤が同一タスクで通算 3 回を超えたら、
+     churn せずユーザーに報告して指示を仰ぐ（flaky 疑いは修正せず 1 回だけ再実行で切り分ける）
 10. dev-re へマージし、push 後に dev-re の CI を確認する
 11. 当該 TaskX-Y ブランチのみを削除し、TaskX-Y 以外を削除していないことを確認して結果を報告する
 ```
