@@ -105,6 +105,53 @@ public class TabOperationTests
 
     [UiFact]
     [Trait("Category", "UITest")]
+    public void MiddleClick_Last_Tab_Of_Group_Should_Close_Group()
+    {
+        // Task 6-6: グループ内の最後のタブを閉じると、空になったグループも自動的に閉じる
+        var (settings, session) = LaunchAtInitialState();
+        using (settings)
+        using (session)
+        {
+            // 作業2 を追加(タブ1個)。アプリ全体ではタブ2個になる
+            UiActions.SendShortcut(session, Keys.Control, "g");
+            UiActions.WaitForGroupCount(session, 2);
+            UiActions.WaitForTabCount(session, 2);
+
+            // 作業2 段の唯一のタブを中クリックで閉じる → 作業2 が空になり自動クローズされる
+            var work2Tab = UiActions.FindGroupRows(session)[1]
+                .FindElementsByAccessibilityId("FolderTabItem").First();
+            UiActions.MiddleClick(session, work2Tab);
+
+            UiActions.WaitForGroupCount(session, 1);
+            UiActions.WaitForTabCount(session, 1);
+        }
+    }
+
+    [UiFact]
+    [Trait("Category", "UITest")]
+    public void MiddleClick_App_Last_Tab_Should_Be_Rejected()
+    {
+        // Task 6-6: アプリ内の最後の1タブは閉じられない(常にタブ1個以上・グループ1段以上を保持する)
+        var (settings, session) = LaunchAtInitialState();
+        using (settings)
+        using (session)
+        {
+            UiActions.WaitForTabCount(session, 1);
+
+            UiActions.MiddleClick(session, UiActions.FindTabs(session)[0]);
+
+            // 閉じる操作は拒否され、タブ・グループは維持される。
+            // 状態が変わらないことを確認するため、一定回数連続でタブ1個を確認する
+            for (var i = 0; i < 5; i++)
+            {
+                Assert.Equal(1, UiActions.FindTabs(session).Count);
+                Assert.Equal(1, UiActions.FindGroupRows(session).Count);
+            }
+        }
+    }
+
+    [UiFact]
+    [Trait("Category", "UITest")]
     public void CtrlShiftT_Should_Restore_Closed_Tab()
     {
         var (settings, session) = LaunchAtInitialState();
