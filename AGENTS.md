@@ -34,8 +34,12 @@ TaskX-Y : Task 単位の作業ブランチ（例: Task1-1, Task3-7）
 * 作業ブランチは必ず `dev-re` から `TaskX-Y` 形式で作成する
 * `dev-re` および `main` への直接コミットは禁止
 * Task 完了後に `dev-re` へマージする
+* `dev-re` へのマージ完了後、当該 `TaskX-Y` ブランチは削除する
+  （remote に push 済みなら remote ブランチも削除する）
+* ブランチ削除は `Task[0-9]+-[0-9]+` 形式の当該 Task ブランチに限定する。
+  `main` / `dev-re` / `dev-Fable` / `feedback` など、TaskX-Y 以外のブランチを誤って削除しないよう必ず確認する
 * `git push --force` / `git reset --hard` / ブランチ・タグの削除は、
-  ユーザーの明示的な承認なしに実行しない
+  上記の Task 完了後の当該 TaskX-Y ブランチ削除を除き、ユーザーの明示的な承認なしに実行しない
 
 ---
 
@@ -45,7 +49,7 @@ TaskX-Y : Task 単位の作業ブランチ（例: Task1-1, Task3-7）
 
 ```text
 1. SPEC.md の該当 Task を読み、作業範囲と完了条件を確認する
-2. dev-re から TaskX-Y ブランチを作成してチェックアウトする
+2. git status と origin/dev-re の取得・確認後、dev-re から TaskX-Y ブランチを作成してチェックアウトする
 3. 実装する
    - SPEC.md に書かれた範囲のみ実装する（仕様の勝手な拡張・変更をしない）
    - 新規機能には必ず単体テストまたは結合テストを追加する
@@ -57,7 +61,13 @@ TaskX-Y : Task 単位の作業ブランチ（例: Task1-1, Task3-7）
 6. コミットする（後述のコミットルールに従う）
 7. 実装に使用したモデルとは別のモデルでコードレビューを行う（後述）
 8. レビュー指摘を修正し、再度 build / test を通してコミットする
-9. dev-re へマージし、Task 完了として結果を報告する
+9. TaskX-Y ブランチを push し、可能であれば CI を確認する
+   - CI が失敗したら TaskX-Y 内で修正する。仕様・ロジック変更は build / test / review / CI を、
+     挙動を変えない軽微な CI-only 修正（Release 警告・アナライザ・スキップ調整等）は build / test / CI を通す（review は省略可）
+   - ループ防止: 原因不明・同じ失敗の繰り返し、または CI 赤が同一タスクで通算 3 回を超えたら、
+     churn せずユーザーに報告して指示を仰ぐ（flaky 疑いは修正せず 1 回だけ再実行で切り分ける）
+10. dev-re へマージし、push 後に dev-re の CI を確認する
+11. 当該 TaskX-Y ブランチのみを削除し、TaskX-Y 以外を削除していないことを確認して結果を報告する
 ```
 
 * 既存テストが失敗した場合は、**実装を止めて原因を説明する**。
@@ -135,8 +145,13 @@ powershell -File scripts/ci-status.ps1 dev-re   # GitHub Actions CI 結果を確
 
 * ソリューションは `.slnx`（.NET 10 新形式）を使用する。`.sln` は作成しない
 * GUI テストの実行手順・サンドボックスポリシーは SPEC.md の「Level 3: GUI自動テスト」に従う
-* **dev-re への push 後・main マージ前に CI を確認する**: `powershell -File scripts/ci-status.ps1 <branch>`
-  （最新の完了 run が success なら exit 0 / 失敗 1 / 進行中 2。green でなければ調査してからマージ）
+* **TaskX-Y ブランチを push 後、可能であれば dev-re マージ前に CI を確認する**:
+  `powershell -File scripts/ci-status.ps1 <branch>`
+  （対象ブランチ HEAD の run が success なら exit 0 / 失敗 1 / 進行中・未実行 2。
+  green でなければ TaskX-Y ブランチ内で修正し、必要なら再レビューする）
+* **dev-re への push 後・main マージ前にも CI を確認する**:
+  `powershell -File scripts/ci-status.ps1 dev-re`
+  （green でなければ調査し、必要な修正方針を決めてから main へ進める）
 
 ---
 
@@ -174,7 +189,7 @@ powershell -File scripts/ci-status.ps1 dev-re   # GitHub Actions CI 結果を確
 - 設定ファイル・CI・開発フローの変更
 - テストプロジェクトから TabNest.App への参照追加（恒久的に禁止）
 - TestFixtures/ 以外への書き込みを伴う GUI テストの追加
-- force push・ブランチ削除・履歴改変
+- force push・Task 完了後の当該 TaskX-Y 以外のブランチ削除・履歴改変
 ```
 
 ---
