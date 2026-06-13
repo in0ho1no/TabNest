@@ -48,7 +48,7 @@ public sealed class MainViewModel : ViewModelBase
             _favorites.RestoreSavedGroups(session.SavedGroups);
             foreach (var favorite in _favorites.SavedGroups)
             {
-                Favorites.Add(new FavoriteItemViewModel(favorite));
+                Favorites.Add(CreateFavoriteItem(favorite));
             }
         }
 
@@ -362,9 +362,73 @@ public sealed class MainViewModel : ViewModelBase
             return false;
         }
 
-        Favorites.Add(new FavoriteItemViewModel(result.Value!));
+        Favorites.Add(CreateFavoriteItem(result.Value!));
         OperationError = null;
         return true;
+    }
+
+    /// <summary>
+    /// お気に入り項目 ViewModel を生成し、リネーム処理(同名衝突解決)を親 ViewModel に接続する。
+    /// </summary>
+    private FavoriteItemViewModel CreateFavoriteItem(SavedTabGroup model)
+        => new(model, newName => RenameFavorite(model.Id, newName));
+
+    /// <summary>
+    /// お気に入りをリネームする(右クリックメニュー「名前の変更」。Task 6-4)。
+    /// 前後の空白を除去し、空文字なら元の名前を維持して何もしない。
+    /// 同名衝突は保存時と同じ規則(完全一致で連番付与・上書きしない)で FavoritesService が解決する。
+    /// </summary>
+    public bool RenameFavorite(string favoriteId, string newName)
+    {
+        var trimmed = newName.Trim();
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        var result = _favorites.RenameFavorite(favoriteId, trimmed);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        if (Favorites.FirstOrDefault(f => f.Id == favoriteId) is { } itemVm)
+        {
+            itemVm.RefreshName();
+        }
+
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
+    /// お気に入りを指定された Id 順に並べ替える(行内 D&amp;D。Task 6-4)。
+    /// FavoritesService の保存順と Favorites コレクションの表示順を同じ順序へ同期する
+    /// (順序は次回起動時に settings.json から復元される)。
+    /// </summary>
+    public void ReorderFavorites(IReadOnlyList<string> orderedIds)
+    {
+        _favorites.ReorderFavorites(orderedIds);
+
+        for (var target = 0; target < orderedIds.Count; target++)
+        {
+            var id = orderedIds[target];
+            var current = -1;
+            for (var i = target; i < Favorites.Count; i++)
+            {
+                if (Favorites[i].Id == id)
+                {
+                    current = i;
+                    break;
+                }
+            }
+
+            if (current >= 0 && current != target)
+            {
+                Favorites.Move(current, target);
+            }
+        }
     }
 
     /// <summary>
