@@ -80,6 +80,24 @@ dev-re トラックの Task 5-1〜5-7 で確立した知見。UI テストを書
   WinAppDriver 無しでも成功する（CI も同様）。
 - フル実行コマンド: `Remove-Item Env:TABNEST_UI_TEST_APP_ID -ErrorAction SilentlyContinue; dotnet test tests/TabNest.UiTests/TabNest.UiTests.csproj`
 
+## 反復する手動チェックは UiFact に昇格する（コスト・安定性）
+- 2 回以上やる GUI 確認は、アドホックな PowerShell（P/Invoke + UIA 走査）で都度書かず、
+  **`TabNest.UiTests` に `UiFact` テストとして追加**し、`build-test-runner` で回す。
+  C# ヘルパー（`AppSession` / `UiActions` / `NativeMethods` / `SettingsFileScope`）が使え、再利用・安定・低トークン。
+- アドホック PowerShell は**一度きりの探索**にとどめる（`gui-evaluator` エージェントに委譲）。
+- 注意: 同一 PowerShell セッションで同じ型を `Add-Type` し直すと「型が既に存在」で失敗する。
+  アドホックでやむを得ず使う場合は名前空間を毎回変える（`Win32a`/`Win32b`…）。これも UiFact 化すれば不要。
+
+## その他の WinUI / WinAppDriver の癖
+- **座標 `element.Click()` は間欠的に空振りする**（アドレスバーに正しい値が入っているのに移動が走らない等）。
+  フォーカス済み要素へ `SendKeys(Keys.Enter)` で確定させると安定。アプリ側も Enter での確定を実装しておく（`PathTextBox_KeyDown`）。
+- **TwoWay バインドは既定で LostFocus 時しか ViewModel に反映されない**。UIA Invoke などフォーカス移動を伴わない
+  自動操作だと古い値でコマンドが走る。自動操作対象の入力欄は **`UpdateSourceTrigger=PropertyChanged`** を指定する。
+- **WinUI 3 ListView のキーボード操作**: `SingleSelectionFollowsFocus=True` を明示しないと矢印キーで
+  フォーカスだけ動いて SelectedItem が null のまま。Enter は ListViewItem が内部 Handled にするため、
+  ListView の KeyDown ハンドラには `AddHandler(KeyDownEvent, handler, handledEventsToo: true)` で登録する。
+  項目選択は `SendKeys(Keys.Down)` → `SendKeys(Keys.Enter)`（Home はフォーカスすら動かないことがある）。
+
 ## サンドボックスポリシー（SPEC「Level 3」）
 - ファイル削除・コピー・移動は GUI テストの対象から原則除外。
 - ナビゲーションで参照する実フォルダは `tests/TabNest.UiTests/TestFixtures/` 以下のみ。
