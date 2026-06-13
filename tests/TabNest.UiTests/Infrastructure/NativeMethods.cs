@@ -37,20 +37,6 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, IntPtr dwExtraInfo);
 
-    /// <summary>
-    /// 物理キー入力を送る。WinAppDriver の SendKeys はアタッチした主ウィンドウへ送られ、
-    /// 別 HWND のポップアップ(MenuFlyout)に届かないため、フォアグラウンド(開いたフライアウト)へ
-    /// 直接届く物理入力でメニュー操作を行う(マウスの mouse_event と同じ方針)。
-    /// </summary>
-    [DllImport("user32.dll")]
-    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, IntPtr dwExtraInfo);
-
-    public const uint KeyEventKeyUp = 0x0002;
-
-    public const byte VkReturn = 0x0D;
-
-    public const byte VkDown = 0x28;
-
     public const uint MouseEventLeftDown = 0x0002;
 
     public const uint MouseEventLeftUp = 0x0004;

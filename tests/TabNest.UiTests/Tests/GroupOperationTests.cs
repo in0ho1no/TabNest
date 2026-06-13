@@ -115,9 +115,9 @@ public class GroupOperationTests
             UiActions.SendShortcut(session, Keys.Control, "g");
             UiActions.WaitForGroupCount(session, 2);
 
-            // 作業2 のグループ名を右クリックし、2番目の項目「グループを削除」を実行する
+            // 作業2 のグループ名を右クリックし、「グループを削除」を AutomationId で実行する
             var work2 = session.Driver.FindElementsByAccessibilityId("GroupNameText").ElementAt(1);
-            UiActions.InvokeContextMenuItem(session, work2, index: 1);
+            UiActions.InvokeContextMenuItem(session, work2, "RemoveGroupMenuItem");
 
             // タブを持つグループなので確認ダイアログが出る。「削除」(PrimaryButton)を押す
             Assert.True(
@@ -139,9 +139,9 @@ public class GroupOperationTests
         using (settings)
         using (session)
         {
-            // グループ名の右クリックメニュー(先頭項目=「お気に入りに保存」)で保存する
+            // グループ名の右クリックメニューで「お気に入りに保存」を AutomationId で実行する
             var groupName = session.Driver.FindElementByAccessibilityId("GroupNameText");
-            UiActions.InvokeFirstContextMenuItem(session, groupName);
+            UiActions.InvokeContextMenuItem(session, groupName, "SaveToFavoritesMenuItem");
 
             Assert.True(
                 UiActions.WaitUntil(

@@ -1,4 +1,5 @@
 using OpenQA.Selenium;
+using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Windows;
 
 namespace TabNest.UiTests.Infrastructure;
@@ -108,40 +109,27 @@ public static class UiActions
     }
 
     /// <summary>
-    /// 右クリックで MenuFlyout を開き、先頭のメニュー項目をキーボードで実行する。
-    /// MenuFlyout は別ウィンドウのポップアップとして表示され、アタッチしたセッションの
-    /// 要素ツリーには現れないため、↓ → Enter のキーボード操作で選択する。
-    /// 注意: 「メニューの先頭項目が目的の項目」であることを前提とする。
-    /// メニュー項目を追加・並び替えする場合は、このヘルパーの利用箇所を必ず見直すこと。
+    /// 右クリックで MenuFlyout を開き、指定 AutomationId のメニュー項目をクリックして実行する。
+    /// MenuFlyout は別 HWND のポップアップとして表示され、appTopLevelWindow でアタッチした
+    /// セッションの要素ツリーには現れない。そのため「デスクトップ Root セッション」を短命で生成し、
+    /// デスクトップ全体の UIA ツリーからメニュー項目を AutomationId で検索してクリックする。
+    /// Root セッションは必ず Dispose する(using で使い捨て)。
     /// </summary>
-    public static void InvokeFirstContextMenuItem(AppSession session, IWebElement element)
-        => InvokeContextMenuItem(session, element, 0);
-
-    /// <summary>
-    /// 右クリックで MenuFlyout を開き、index 番目(0始まり)のメニュー項目を実行する。
-    /// MenuFlyout は別 HWND のポップアップでセッションの要素ツリーに現れず、
-    /// WinAppDriver の SendKeys はアタッチした主ウィンドウへ送られて届かないため、
-    /// フォアグラウンドの開いたフライアウトへ物理キー入力(keybd_event)で
-    /// ↓ を (index+1) 回送って目的の項目までフォーカスを移し、Enter で実行する。
-    /// </summary>
-    public static void InvokeContextMenuItem(AppSession session, IWebElement element, int index)
+    public static void InvokeContextMenuItem(AppSession session, IWebElement element, string menuItemAutomationId)
     {
         RightClick(session, element);
         Thread.Sleep(500); // フライアウトの表示待ち
-        for (var i = 0; i <= index; i++)
-        {
-            PressKey(NativeMethods.VkDown);
-        }
 
-        PressKey(NativeMethods.VkReturn);
-    }
+        var rootOptions = new AppiumOptions();
+        rootOptions.AddAdditionalCapability("app", "Root");
+        rootOptions.AddAdditionalCapability("deviceName", "WindowsPC");
 
-    /// <summary>物理キーを1回押下・解放する(フォアグラウンドのフライアウト等へ直接届く)。</summary>
-    private static void PressKey(byte virtualKey)
-    {
-        NativeMethods.keybd_event(virtualKey, 0, 0, IntPtr.Zero);
-        NativeMethods.keybd_event(virtualKey, 0, NativeMethods.KeyEventKeyUp, IntPtr.Zero);
-        Thread.Sleep(80);
+        using var rootSession = new WindowsDriver<WindowsElement>(
+            new Uri(UiTestEnvironment.WinAppDriverUrl), rootOptions, TimeSpan.FromSeconds(30));
+        rootSession.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
+
+        var menuItem = rootSession.FindElementByAccessibilityId(menuItemAutomationId);
+        menuItem.Click();
     }
 
     private static void MoveCursorToElementCenter(AppSession session, IWebElement element)
