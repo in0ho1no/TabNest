@@ -168,6 +168,38 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// タブを複製する(タブの右クリックメニュー)。元タブと同じ Path / Title の新規タブを
+    /// 元タブの直後に挿入し、複製したタブをアクティブにしてその内容を表示する。
+    /// 複製タブの戻る・進む履歴は引き継がず、新規(空)の履歴で開始する。
+    /// グループのタブ上限(20)到達時は複製せず OperationError を設定して false を返す。
+    /// </summary>
+    public bool DuplicateTab(FolderTabViewModel tab)
+    {
+        var groupVm = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
+        if (groupVm is null)
+        {
+            return false;
+        }
+
+        var result = _tabManager.DuplicateTab(tab.Id);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        var index = groupVm.Tabs.IndexOf(tab);
+        var duplicateVm = new FolderTabViewModel(result.Value!);
+        groupVm.Tabs.Insert(index + 1, duplicateVm);
+        ApplyActiveStates();
+        // 複製タブはアクティブになるため、新規(空)の履歴を接続して内容を表示する
+        Folder.AttachHistory(duplicateVm.History);
+        Folder.ShowFolder(duplicateVm.Path);
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
     /// アクティブタブを閉じる(Ctrl+W)。中クリックでの閉じると同一の経路(CloseTab)を通り、
     /// ClosedTab 履歴へ積む。最後のタブを閉じた場合の挙動も中クリックに統一する。
     /// グループ名編集中は何も実行しない(編集状態を維持する)。
@@ -531,7 +563,8 @@ public sealed class MainViewModel : ViewModelBase
             tab => SelectTab(tab),
             tab => CloseTab(tab),
             () => SaveGroupAsFavorite(group.Id),
-            () => RemoveGroup(group.Id));
+            () => RemoveGroup(group.Id),
+            tab => DuplicateTab(tab));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。

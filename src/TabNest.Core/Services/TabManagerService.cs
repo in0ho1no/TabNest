@@ -247,6 +247,43 @@ public sealed class TabManagerService
     }
 
     /// <summary>
+    /// タブを複製する。元タブと同じ Path / Title の新規タブを元タブの直後に挿入し、
+    /// 複製したタブをアクティブにする(SPEC Task 6-3)。複製タブには新しい Id を採番する。
+    /// 戻る・進む履歴は ViewModel 層が保持するため、本 DTO の複製では引き継がれない。
+    /// グループ毎のタブ数上限(20)到達時は複製せず失敗結果を返す。
+    /// </summary>
+    public TabOperationResult<FolderTab> DuplicateTab(string tabId)
+    {
+        var group = _groups.FirstOrDefault(g => g.Tabs.Any(t => t.Id == tabId));
+        if (group is null)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabNotFound,
+                "指定されたタブが見つかりません。");
+        }
+
+        if (group.Tabs.Count >= MaxTabsPerGroup)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabLimitReached,
+                $"1グループのタブは最大 {MaxTabsPerGroup} 個までです。");
+        }
+
+        var index = group.Tabs.FindIndex(t => t.Id == tabId);
+        var source = group.Tabs[index];
+        var duplicate = new FolderTab
+        {
+            Id = Guid.NewGuid().ToString(),
+            Path = source.Path,
+            Title = source.Title,
+            CreatedAt = DateTime.Now,
+        };
+        group.Tabs.Insert(index + 1, duplicate);
+        SetActiveTab(duplicate.Id);
+        return TabOperationResult<FolderTab>.Success(duplicate);
+    }
+
+    /// <summary>
     /// タブを閉じる。アクティブタブを閉じた場合は同グループ内の隣のタブ
     /// (次を優先、無ければ前)をアクティブにする。グループが空になった場合は
     /// アクティブタブなし(null)となる。タブが存在しない場合は false。

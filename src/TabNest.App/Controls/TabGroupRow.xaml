@@ -81,6 +81,14 @@
                             PointerPressed="TabItem_PointerPressed"
                             Tapped="TabItem_Tapped"
                             ToolTipService.ToolTip="{x:Bind Path, Mode=OneWay}">
+                            <Border.ContextFlyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem
+                                        AutomationProperties.AutomationId="DuplicateTabMenuItem"
+                                        Click="DuplicateTab_Click"
+                                        Text="タブを複製" />
+                                </MenuFlyout>
+                            </Border.ContextFlyout>
                             <!--
                                 AutomationId は Border ではなく TextBlock に付与する
                                 (Border は AutomationPeer を持たず UIA から検索できないため。SPEC Task 5-2)
