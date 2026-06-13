@@ -85,6 +85,27 @@ public class SessionSaveTests
     }
 
     [Fact]
+    public void フォルダツリー表示状態が保存内容に反映される_既定はtrue()
+    {
+        var vm = CreateViewModel();
+
+        var settings = vm.CreateAppSettings(1280, 800, 220);
+
+        Assert.True(settings.IsFolderTreeVisible);
+    }
+
+    [Fact]
+    public void フォルダツリーを非表示にすると保存内容にfalseが反映される()
+    {
+        var vm = CreateViewModel();
+        vm.IsFolderTreeVisible = false;
+
+        var settings = vm.CreateAppSettings(1280, 800, 220);
+
+        Assert.False(settings.IsFolderTreeVisible);
+    }
+
+    [Fact]
     public void 閉じたタブが履歴として保存内容に含まれる()
     {
         var vm = CreateViewModel();
