@@ -273,4 +273,64 @@ public class TabManagerServiceTests
         Assert.Same(group, service.ActiveGroup);
         Assert.Same(tab, service.ActiveTab);
     }
+
+    [Fact]
+    public void ReorderTabs_指定順にグループ内タブが並べ替わる()
+    {
+        var service = new TabManagerService();
+        var group = AddGroup(service, "作業1");
+        var t1 = AddTab(service, group.Id, @"C:\a", "a");
+        var t2 = AddTab(service, group.Id, @"C:\b", "b");
+        var t3 = AddTab(service, group.Id, @"C:\c", "c");
+
+        var ok = service.ReorderTabs(group.Id, [t3.Id, t1.Id, t2.Id]);
+
+        Assert.True(ok);
+        Assert.Equal([t3.Id, t1.Id, t2.Id], group.Tabs.Select(t => t.Id).ToArray());
+    }
+
+    [Fact]
+    public void ReorderTabs_並べ替えてもアクティブタブと選択タブが維持される()
+    {
+        var service = new TabManagerService();
+        var group = AddGroup(service, "作業1");
+        var t1 = AddTab(service, group.Id, @"C:\a", "a");
+        var t2 = AddTab(service, group.Id, @"C:\b", "b");
+        AddTab(service, group.Id, @"C:\c", "c");
+        // t2 をアクティブ・選択タブにする
+        service.SetActiveTab(t2.Id);
+
+        service.ReorderTabs(group.Id, [t2.Id, t1.Id]);
+
+        Assert.Equal(t2.Id, service.ActiveTabId);
+        Assert.Equal(t2.Id, group.SelectedTabId);
+        Assert.Equal(group.Id, service.ActiveGroupId);
+    }
+
+    [Fact]
+    public void ReorderTabs_未知のIdは無視し未指定タブは末尾に元の順で残す()
+    {
+        var service = new TabManagerService();
+        var group = AddGroup(service, "作業1");
+        var t1 = AddTab(service, group.Id, @"C:\a", "a");
+        var t2 = AddTab(service, group.Id, @"C:\b", "b");
+        var t3 = AddTab(service, group.Id, @"C:\c", "c");
+
+        // t3 のみ先頭指定 + 存在しない Id。t1,t2 は元の相対順で末尾に残る
+        var ok = service.ReorderTabs(group.Id, [t3.Id, "no-such"]);
+
+        Assert.True(ok);
+        Assert.Equal([t3.Id, t1.Id, t2.Id], group.Tabs.Select(t => t.Id).ToArray());
+    }
+
+    [Fact]
+    public void ReorderTabs_存在しないグループはfalseを返す()
+    {
+        var service = new TabManagerService();
+        AddGroup(service, "作業1");
+
+        var ok = service.ReorderTabs("no-such-group", ["x"]);
+
+        Assert.False(ok);
+    }
 }

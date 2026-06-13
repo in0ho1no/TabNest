@@ -10,6 +10,8 @@ public sealed class FolderTabViewModel : ViewModelBase
     private readonly FolderTab _model;
     private string _title;
     private bool _isActive;
+    private bool _isDropBefore;
+    private bool _isDropAfter;
 
     public FolderTabViewModel(FolderTab model)
     {
@@ -43,6 +45,24 @@ public sealed class FolderTabViewModel : ViewModelBase
     {
         get => _isActive;
         set => SetProperty(ref _isActive, value);
+    }
+
+    /// <summary>
+    /// グループ内 D&amp;D 中に、このタブの直前を挿入位置として示すインジケータを表示するか(Task 7-1)。
+    /// </summary>
+    public bool IsDropBefore
+    {
+        get => _isDropBefore;
+        set => SetProperty(ref _isDropBefore, value);
+    }
+
+    /// <summary>
+    /// グループ内 D&amp;D 中に、このタブの直後を挿入位置として示すインジケータを表示するか(Task 7-1)。
+    /// </summary>
+    public bool IsDropAfter
+    {
+        get => _isDropAfter;
+        set => SetProperty(ref _isDropAfter, value);
     }
 
     /// <summary>

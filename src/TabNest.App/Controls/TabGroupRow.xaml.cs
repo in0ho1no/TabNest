@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using TabNest.ViewModels;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 
 namespace TabNest.App.Controls;
@@ -15,6 +16,9 @@ namespace TabNest.App.Controls;
 /// </summary>
 public sealed partial class TabGroupRow : UserControl
 {
+    /// <summary>このグループ内で D&D 中のタブ(同一グループ内の並べ替えに使う。Task 7-1)。</summary>
+    private FolderTabViewModel? _draggingTab;
+
     public TabGroupViewModel? ViewModel { get; private set; }
 
     public TabGroupRow()
@@ -159,5 +163,87 @@ public sealed partial class TabGroupRow : UserControl
             ViewModel?.CloseTab(tab);
             e.Handled = true;
         }
+    }
+
+    /// <summary>
+    /// タブのドラッグ開始(Task 7-1)。ドラッグ中のタブを保持し、移動操作として開始する。
+    /// データにはタブ Id を載せる(将来のグループ間移動 Task 7-2 で参照するため)。
+    /// </summary>
+    private void TabItem_DragStarting(UIElement sender, DragStartingEventArgs args)
+    {
+        if (sender is FrameworkElement { DataContext: FolderTabViewModel tab })
+        {
+            _draggingTab = tab;
+            args.Data.SetText(tab.Id);
+            args.Data.RequestedOperation = DataPackageOperation.Move;
+        }
+    }
+
+    /// <summary>
+    /// タブ上のドラッグ中(Task 7-1)。同一グループ内のドラッグのみ受け付け、
+    /// ポインタ位置(タブの左右どちら寄りか)に応じて挿入位置インジケータを表示する。
+    /// </summary>
+    private void TabItem_DragOver(object sender, DragEventArgs e)
+    {
+        if (_draggingTab is null
+            || sender is not FrameworkElement { DataContext: FolderTabViewModel target } element)
+        {
+            return;
+        }
+
+        e.AcceptedOperation = DataPackageOperation.Move;
+        e.DragUIOverride.IsGlyphVisible = false;
+        e.DragUIOverride.IsCaptionVisible = false;
+
+        // 自分自身の上ではインジケータを出さない(移動が起きないため)
+        if (ReferenceEquals(target, _draggingTab))
+        {
+            ViewModel?.ClearDropIndicators();
+            return;
+        }
+
+        var after = e.GetPosition(element).X > element.ActualWidth / 2;
+        ViewModel?.SetDropIndicator(target, after);
+    }
+
+    /// <summary>タブからドラッグが外れたとき、そのタブのインジケータを消す(Task 7-1)。</summary>
+    private void TabItem_DragLeave(object sender, DragEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FolderTabViewModel target }
+            && (target.IsDropBefore || target.IsDropAfter))
+        {
+            target.IsDropBefore = false;
+            target.IsDropAfter = false;
+        }
+    }
+
+    /// <summary>
+    /// タブへのドロップ(Task 7-1)。ドロップ先タブの左右どちら寄りかで挿入位置を決め、
+    /// 同一グループ内でタブを並べ替える。
+    /// </summary>
+    private void TabItem_Drop(object sender, DragEventArgs e)
+    {
+        if (_draggingTab is null || ViewModel is null
+            || sender is not FrameworkElement { DataContext: FolderTabViewModel target } element)
+        {
+            return;
+        }
+
+        var targetIndex = ViewModel.Tabs.IndexOf(target);
+        if (targetIndex >= 0)
+        {
+            var after = e.GetPosition(element).X > element.ActualWidth / 2;
+            ViewModel.MoveTab(_draggingTab, after ? targetIndex + 1 : targetIndex);
+        }
+
+        ViewModel.ClearDropIndicators();
+        _draggingTab = null;
+    }
+
+    /// <summary>ドラッグ終了(ドロップの成否を問わず)。状態とインジケータを片付ける(Task 7-1)。</summary>
+    private void TabItem_DropCompleted(UIElement sender, DropCompletedEventArgs args)
+    {
+        ViewModel?.ClearDropIndicators();
+        _draggingTab = null;
     }
 }

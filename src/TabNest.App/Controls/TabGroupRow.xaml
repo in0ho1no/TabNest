@@ -70,35 +70,57 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:FolderTabViewModel">
-                        <Border
-                            MaxWidth="140"
-                            Padding="10,4"
-                            VerticalAlignment="Center"
-                            Background="{x:Bind local:TabGroupRow.TabBackground(IsActive), Mode=OneWay}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            PointerPressed="TabItem_PointerPressed"
-                            Tapped="TabItem_Tapped"
-                            ToolTipService.ToolTip="{x:Bind Path, Mode=OneWay}">
-                            <Border.ContextFlyout>
-                                <MenuFlyout>
-                                    <MenuFlyoutItem
-                                        AutomationProperties.AutomationId="DuplicateTabMenuItem"
-                                        Click="DuplicateTab_Click"
-                                        Text="タブを複製" />
-                                </MenuFlyout>
-                            </Border.ContextFlyout>
-                            <!--
-                                AutomationId は Border ではなく TextBlock に付与する
-                                (Border は AutomationPeer を持たず UIA から検索できないため。SPEC Task 5-2)
-                            -->
-                            <TextBlock
-                                AutomationProperties.AutomationId="FolderTabItem"
-                                Foreground="{x:Bind local:TabGroupRow.TabForeground(IsActive), Mode=OneWay}"
-                                Text="{x:Bind Title, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis" />
-                        </Border>
+                        <!--  挿入位置インジケータ(左/右)でタブを挟む(Task 7-1 のグループ内 D&D)  -->
+                        <StackPanel Orientation="Horizontal">
+                            <Border
+                                Width="3"
+                                Margin="0,2"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                CornerRadius="2"
+                                Visibility="{x:Bind local:TabGroupRow.VisibleWhen(IsDropBefore), Mode=OneWay}" />
+                            <Border
+                                MaxWidth="140"
+                                Padding="10,4"
+                                VerticalAlignment="Center"
+                                AllowDrop="True"
+                                Background="{x:Bind local:TabGroupRow.TabBackground(IsActive), Mode=OneWay}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CanDrag="True"
+                                CornerRadius="4"
+                                DragLeave="TabItem_DragLeave"
+                                DragOver="TabItem_DragOver"
+                                DragStarting="TabItem_DragStarting"
+                                Drop="TabItem_Drop"
+                                DropCompleted="TabItem_DropCompleted"
+                                PointerPressed="TabItem_PointerPressed"
+                                Tapped="TabItem_Tapped"
+                                ToolTipService.ToolTip="{x:Bind Path, Mode=OneWay}">
+                                <Border.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem
+                                            AutomationProperties.AutomationId="DuplicateTabMenuItem"
+                                            Click="DuplicateTab_Click"
+                                            Text="タブを複製" />
+                                    </MenuFlyout>
+                                </Border.ContextFlyout>
+                                <!--
+                                    AutomationId は Border ではなく TextBlock に付与する
+                                    (Border は AutomationPeer を持たず UIA から検索できないため。SPEC Task 5-2)
+                                -->
+                                <TextBlock
+                                    AutomationProperties.AutomationId="FolderTabItem"
+                                    Foreground="{x:Bind local:TabGroupRow.TabForeground(IsActive), Mode=OneWay}"
+                                    Text="{x:Bind Title, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </Border>
+                            <Border
+                                Width="3"
+                                Margin="0,2"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                CornerRadius="2"
+                                Visibility="{x:Bind local:TabGroupRow.VisibleWhen(IsDropAfter), Mode=OneWay}" />
+                        </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

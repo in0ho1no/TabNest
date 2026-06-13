@@ -363,6 +363,42 @@ public sealed class TabManagerService
     }
 
     /// <summary>
+    /// 同一グループ内のタブを指定された Id 順に並べ替える(Task 7-1。グループ内 D&amp;D の結果を反映)。
+    /// orderedIds に含まれない既存タブは末尾に元の相対順で残し、未知の Id は無視する(防御的)。
+    /// 並べ替えはタブの同一性(Id)を変えないため、アクティブタブ・SelectedTabId は保持される。
+    /// グループが存在しない場合は false。
+    /// </summary>
+    public bool ReorderTabs(string groupId, IReadOnlyList<string> orderedIds)
+    {
+        if (FindGroup(groupId) is not TabGroup group)
+        {
+            return false;
+        }
+
+        var reordered = new List<FolderTab>(group.Tabs.Count);
+        foreach (var id in orderedIds)
+        {
+            var tab = group.Tabs.FirstOrDefault(t => t.Id == id);
+            if (tab is not null && !reordered.Contains(tab))
+            {
+                reordered.Add(tab);
+            }
+        }
+
+        foreach (var tab in group.Tabs)
+        {
+            if (!reordered.Contains(tab))
+            {
+                reordered.Add(tab);
+            }
+        }
+
+        group.Tabs.Clear();
+        group.Tabs.AddRange(reordered);
+        return true;
+    }
+
+    /// <summary>
     /// アクティブタブを変更する。所属グループもアクティブになり、
     /// グループの SelectedTabId も更新される。タブが存在しない場合は false。
     /// </summary>
