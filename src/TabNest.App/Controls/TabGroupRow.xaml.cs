@@ -58,6 +58,14 @@ public sealed partial class TabGroupRow : UserControl
     public static Visibility VisibleWhenNot(bool value)
         => value ? Visibility.Collapsed : Visibility.Visible;
 
+    /// <summary>
+    /// x:Bind 用: グループ名編集中はドラッグハンドルを無効化する(Task 8-1)。
+    /// CanDrag=true の要素内にある TextBox はポインタ入力をドラッグ操作に奪われ、
+    /// フォーカス/編集状態が即時解除されてキーボード入力できなくなる(Task 7-3 で混入)。
+    /// 編集中は段の D&D を止めることで、TextBox がフォーカスを保持できるようにする。
+    /// </summary>
+    public static bool CanDragGroupName(bool isEditingName) => !isEditingName;
+
     /// <summary>x:Bind 用: アクティブタブはアクセント色、それ以外はカード背景色。</summary>
     public static Brush TabBackground(bool isActive)
         => (Brush)Application.Current.Resources[
@@ -79,6 +87,20 @@ public sealed partial class TabGroupRow : UserControl
 
     private void GroupNameText_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
+        BeginInlineRename();
+        e.Handled = true;
+    }
+
+    /// <summary>右クリックメニュー「名前の変更」(Task 8-1)。ダブルクリックと同じインライン編集へ入る。</summary>
+    private void RenameGroup_Click(object sender, RoutedEventArgs e)
+        => BeginInlineRename();
+
+    /// <summary>
+    /// グループ名のインライン編集を開始し、編集 TextBox にフォーカスと全選択を与える(Task 8-1)。
+    /// ダブルクリックと右クリックメニュー「名前の変更」の双方から呼ぶ。
+    /// </summary>
+    private void BeginInlineRename()
+    {
         if (ViewModel is null)
         {
             return;
@@ -91,7 +113,6 @@ public sealed partial class TabGroupRow : UserControl
             GroupNameEditBox.Focus(FocusState.Programmatic);
             GroupNameEditBox.SelectAll();
         });
-        e.Handled = true;
     }
 
     private void GroupNameEditBox_KeyDown(object sender, KeyRoutedEventArgs e)
