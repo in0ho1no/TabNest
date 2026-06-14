@@ -190,6 +190,7 @@ public sealed partial class MainPage : Page
     private void FavoriteItem_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (sender is FrameworkElement { DataContext: FavoriteItemViewModel favorite } element
+            && !favorite.IsEditingName
             && e.GetCurrentPoint(element).Properties.IsMiddleButtonPressed)
         {
             ViewModel?.OpenFavorite(favorite.Id);
