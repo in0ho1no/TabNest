@@ -11,23 +11,54 @@
     DataContextChanged="OnDataContextChanged"
     mc:Ignorable="d">
 
-    <Grid Padding="4,2" ColumnSpacing="8">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <!--  段全体をグループ段の D&D ドロップ先にする(挿入位置インジケータを上下に表示。Task 7-3)  -->
+    <Grid
+        AllowDrop="True"
+        DragLeave="Row_DragLeave"
+        DragOver="Row_DragOver"
+        Drop="Row_Drop">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
 
-        <!--  グループ名(ダブルクリックでインライン編集、右クリックでお気に入りに保存)  -->
+        <!--  段の上端への挿入位置インジケータ(Task 7-3)  -->
+        <Border
+            Grid.Row="0"
+            Height="3"
+            Margin="4,0"
+            Background="{ThemeResource AccentFillColorDefaultBrush}"
+            CornerRadius="2"
+            Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsDropAbove), Mode=OneWay}" />
+
         <Grid
-            Grid.Column="0"
-            MinWidth="80"
-            VerticalAlignment="Center">
-            <Grid.ContextFlyout>
+            Grid.Row="1"
+            Padding="4,2"
+            ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!--  グループ名(ダブルクリックでインライン編集、右クリックでお気に入りに保存)。段の D&D ドラッグハンドルを兼ねる(Task 7-3)  -->
+            <Grid
+                Grid.Column="0"
+                MinWidth="80"
+                VerticalAlignment="Center"
+                CanDrag="True"
+                DragStarting="GroupName_DragStarting"
+                DropCompleted="GroupName_DropCompleted">
+                <Grid.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem
                         AutomationProperties.AutomationId="SaveToFavoritesMenuItem"
                         Click="SaveToFavorites_Click"
                         Text="お気に入りに保存" />
+                    <MenuFlyoutItem
+                        AutomationProperties.AutomationId="RemoveGroupMenuItem"
+                        Click="RemoveGroup_Click"
+                        Text="グループを削除" />
                 </MenuFlyout>
             </Grid.ContextFlyout>
             <TextBlock
@@ -51,9 +82,12 @@
                 Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsEditingName), Mode=OneWay}" />
         </Grid>
 
-        <!--  タブ横並び+水平スクロール  -->
+        <!--  タブ横並び+水平スクロール(空白部・空グループへのドロップは ScrollViewer がフォールバックで受ける。Task 7-2)  -->
         <ScrollViewer
             Grid.Column="1"
+            AllowDrop="True"
+            DragOver="Group_DragOver"
+            Drop="Group_Drop"
             HorizontalScrollBarVisibility="Auto"
             HorizontalScrollMode="Enabled"
             VerticalScrollBarVisibility="Hidden"
@@ -66,30 +100,70 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:FolderTabViewModel">
-                        <Border
-                            MaxWidth="140"
-                            Padding="10,4"
-                            VerticalAlignment="Center"
-                            Background="{x:Bind local:TabGroupRow.TabBackground(IsActive), Mode=OneWay}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="4"
-                            PointerPressed="TabItem_PointerPressed"
-                            Tapped="TabItem_Tapped"
-                            ToolTipService.ToolTip="{x:Bind Path, Mode=OneWay}">
-                            <!--
-                                AutomationId は Border ではなく TextBlock に付与する
-                                (Border は AutomationPeer を持たず UIA から検索できないため。SPEC Task 5-2)
-                            -->
-                            <TextBlock
-                                AutomationProperties.AutomationId="FolderTabItem"
-                                Foreground="{x:Bind local:TabGroupRow.TabForeground(IsActive), Mode=OneWay}"
-                                Text="{x:Bind Title, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis" />
-                        </Border>
+                        <!--  挿入位置インジケータ(左/右)でタブを挟む(Task 7-1 のグループ内 D&D)  -->
+                        <StackPanel Orientation="Horizontal">
+                            <Border
+                                Width="3"
+                                Margin="0,2"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                CornerRadius="2"
+                                Visibility="{x:Bind local:TabGroupRow.VisibleWhen(IsDropBefore), Mode=OneWay}" />
+                            <Border
+                                MaxWidth="140"
+                                Padding="10,4"
+                                VerticalAlignment="Center"
+                                AllowDrop="True"
+                                Background="{x:Bind local:TabGroupRow.TabBackground(IsActive), Mode=OneWay}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CanDrag="True"
+                                CornerRadius="4"
+                                DragLeave="TabItem_DragLeave"
+                                DragOver="TabItem_DragOver"
+                                DragStarting="TabItem_DragStarting"
+                                Drop="TabItem_Drop"
+                                DropCompleted="TabItem_DropCompleted"
+                                PointerPressed="TabItem_PointerPressed"
+                                Tapped="TabItem_Tapped"
+                                ToolTipService.ToolTip="{x:Bind Path, Mode=OneWay}">
+                                <Border.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem
+                                            AutomationProperties.AutomationId="DuplicateTabMenuItem"
+                                            Click="DuplicateTab_Click"
+                                            Text="タブを複製" />
+                                    </MenuFlyout>
+                                </Border.ContextFlyout>
+                                <!--
+                                    AutomationId は Border ではなく TextBlock に付与する
+                                    (Border は AutomationPeer を持たず UIA から検索できないため。SPEC Task 5-2)
+                                -->
+                                <TextBlock
+                                    AutomationProperties.AutomationId="FolderTabItem"
+                                    Foreground="{x:Bind local:TabGroupRow.TabForeground(IsActive), Mode=OneWay}"
+                                    Text="{x:Bind Title, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                            </Border>
+                            <Border
+                                Width="3"
+                                Margin="0,2"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                CornerRadius="2"
+                                Visibility="{x:Bind local:TabGroupRow.VisibleWhen(IsDropAfter), Mode=OneWay}" />
+                        </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
+        </Grid>
+
+        <!--  段の下端への挿入位置インジケータ(Task 7-3)  -->
+        <Border
+            Grid.Row="2"
+            Height="3"
+            Margin="4,0"
+            Background="{ThemeResource AccentFillColorDefaultBrush}"
+            CornerRadius="2"
+            Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsDropBelow), Mode=OneWay}" />
     </Grid>
 </UserControl>

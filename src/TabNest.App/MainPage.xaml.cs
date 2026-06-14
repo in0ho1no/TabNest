@@ -1,6 +1,8 @@
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using TabNest.ViewModels;
 using Windows.System;
@@ -21,6 +23,14 @@ public sealed partial class MainPage : Page
 
     /// <summary>x:Bind 用: 文字列が空でなければ true。</summary>
     public static bool HasText(string? value) => !string.IsNullOrEmpty(value);
+
+    /// <summary>x:Bind 用: true なら Visible。</summary>
+    public static Visibility VisibleWhen(bool value)
+        => value ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>x:Bind 用: false なら Visible。</summary>
+    public static Visibility VisibleWhenNot(bool value)
+        => value ? Visibility.Collapsed : Visibility.Visible;
 
     /// <summary>
     /// 左カラム(お気に入り+フォルダツリー)の現在幅。セッション保存用
@@ -74,13 +84,18 @@ public sealed partial class MainPage : Page
     private void FolderTreeView_Loaded(object sender, RoutedEventArgs e)
     {
         var innerList = FindDescendant<TreeViewList>(FolderTreeView);
-        // 内部構造が変わって取得できなくなった場合は ElementDiscoveryTests でも検出されるが、
-        // 開発中に気付けるようアサートしておく
-        System.Diagnostics.Debug.Assert(innerList is not null, "TreeViewList が見つかりません(FolderTreeView の AutomationId を設定できません)");
-        if (innerList is not null)
+        if (innerList is null)
         {
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(innerList, "FolderTreeView");
+            // フォルダツリー非表示(Collapsed。Task 6-5 のトグル)では内部の TreeViewList が
+            // 未実体化のため見つからないのは正常。表示中なのに見つからない場合のみ、
+            // 内部構造変化(ElementDiscoveryTests でも検出)を開発中に気付けるようアサートする。
+            System.Diagnostics.Debug.Assert(
+                FolderTreeView.Visibility == Visibility.Collapsed,
+                "TreeViewList が見つかりません(FolderTreeView の AutomationId を設定できません)");
+            return;
         }
+
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(innerList, "FolderTreeView");
     }
 
     private static T? FindDescendant<T>(DependencyObject root)
@@ -120,6 +135,101 @@ public sealed partial class MainPage : Page
         {
             ViewModel?.RemoveFavorite(favorite.Id);
         }
+    }
+
+    /// <summary>お気に入りの右クリックメニュー「名前の変更」。インライン編集を開始する(Task 6-4)。</summary>
+    private void RenameFavorite_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: FavoriteItemViewModel favorite })
+        {
+            return;
+        }
+
+        favorite.BeginRename();
+        // Visibility 反映後にフォーカスを移すため、レイアウト更新後に編集 TextBox を探してフォーカスする
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (FindFavoriteEditBox(favorite) is { } editBox)
+            {
+                editBox.Focus(FocusState.Programmatic);
+                editBox.SelectAll();
+            }
+        });
+    }
+
+    /// <summary>お気に入りリネーム編集中のキー操作(Enter 確定 / Esc 取消)。</summary>
+    private void FavoriteNameEditBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: FavoriteItemViewModel favorite })
+        {
+            return;
+        }
+
+        if (e.Key == VirtualKey.Enter)
+        {
+            favorite.CommitRename();
+            e.Handled = true;
+        }
+        else if (e.Key == VirtualKey.Escape)
+        {
+            favorite.CancelRename();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>お気に入りリネーム編集 TextBox のフォーカス喪失で確定する。</summary>
+    private void FavoriteNameEditBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FavoriteItemViewModel favorite })
+        {
+            favorite.CommitRename();
+        }
+    }
+
+    /// <summary>行内 D&amp;D 完了時に、表示順を ViewModel(と FavoritesService)へ反映する(Task 6-4)。</summary>
+    private void FavoritesListView_DragItemsCompleted(
+        ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        // ListView は ItemsSource(Favorites)を直接並べ替え済み。その順序をサービス側へ同期する
+        var orderedIds = ViewModel.Favorites.Select(f => f.Id).ToList();
+        ViewModel.ReorderFavorites(orderedIds);
+    }
+
+    /// <summary>指定したお気に入り項目のコンテナ内にあるリネーム編集 TextBox を探す。</summary>
+    private TextBox? FindFavoriteEditBox(FavoriteItemViewModel favorite)
+    {
+        if (FavoritesListView.ContainerFromItem(favorite) is not DependencyObject container)
+        {
+            return null;
+        }
+
+        return FindDescendantByName(container, "FavoriteNameEditBox") as TextBox;
+    }
+
+    /// <summary>名前付き子孫要素を深さ優先で探す(ItemTemplate 内の要素にアクセスするため)。</summary>
+    private static FrameworkElement? FindDescendantByName(DependencyObject root, string name)
+    {
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is FrameworkElement { Name: var childName } element && childName == name)
+            {
+                return element;
+            }
+
+            if (FindDescendantByName(child, name) is { } found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     // ---- ファイル一覧: 列ソートと列幅自動調整(Task 4-5) ----

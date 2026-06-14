@@ -14,6 +14,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly FavoritesService _favorites = new();
     private string _title = "TabNest";
     private string? _operationError;
+    private bool _isFolderTreeVisible = true;
 
     /// <param name="session">
     /// 復元するセッション(起動時に settings.json から読み込んだ AppSettings)。
@@ -40,6 +41,8 @@ public sealed class MainViewModel : ViewModelBase
         LeftPaneWidth = Math.Max(
             MinLeftPaneWidth,
             NormalizeLength(session?.LeftPaneWidth ?? 0, fallback: DefaultLeftPaneWidth));
+        // フォルダツリーの表示状態を復元する(保存値が無い場合は既定で表示する)
+        _isFolderTreeVisible = session?.IsFolderTreeVisible ?? true;
 
         // お気に入りはタブ状態の復元成否と独立して復元する
         // (タブ状態が無く初期起動状態になる場合でも、保存済みのお気に入りは保持する)
@@ -48,7 +51,7 @@ public sealed class MainViewModel : ViewModelBase
             _favorites.RestoreSavedGroups(session.SavedGroups);
             foreach (var favorite in _favorites.SavedGroups)
             {
-                Favorites.Add(new FavoriteItemViewModel(favorite));
+                Favorites.Add(CreateFavoriteItem(favorite));
             }
         }
 
@@ -99,6 +102,16 @@ public sealed class MainViewModel : ViewModelBase
         set => SetProperty(ref _title, value);
     }
 
+    /// <summary>
+    /// 左カラムのフォルダツリーを表示するか(Task 6-5)。トグルで切り替え、settings.json に保存・復元する。
+    /// false のとき View 側でフォルダツリー領域を畳む(お気に入り領域は残す)。
+    /// </summary>
+    public bool IsFolderTreeVisible
+    {
+        get => _isFolderTreeVisible;
+        set => SetProperty(ref _isFolderTreeVisible, value);
+    }
+
     /// <summary>表示中フォルダのファイル一覧 ViewModel。</summary>
     public FolderViewModel Folder { get; }
 
@@ -143,7 +156,9 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>
     /// タブを閉じる(ホイールクリック)。アクティブタブを閉じた場合は
-    /// 新しいアクティブタブのフォルダ内容を表示する。
+    /// 新しいアクティブタブのフォルダ内容を表示する。閉じた結果グループが空になった場合は
+    /// Core 側で空グループが自動クローズされるため、対応するグループ表示も除去する(Task 6-6)。
+    /// アプリ内の最後の1タブは閉じられず、状態を変更せず false を返す。
     /// </summary>
     public bool CloseTab(FolderTabViewModel tab)
     {
@@ -155,6 +170,13 @@ public sealed class MainViewModel : ViewModelBase
 
         var groupVm = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
         groupVm?.Tabs.Remove(tab);
+
+        // Core 側でグループが自動クローズされた場合は ViewModel 側のグループ表示も除去する
+        if (groupVm is not null && _tabManager.Groups.All(g => g.Id != groupVm.Id))
+        {
+            Groups.Remove(groupVm);
+        }
+
         ApplyActiveStates();
 
         if (wasActive && _tabManager.ActiveTabId is string newActiveId
@@ -164,6 +186,95 @@ public sealed class MainViewModel : ViewModelBase
             Folder.ShowFolder(newActiveVm.Path);
         }
 
+        return true;
+    }
+
+    /// <summary>
+    /// タブを複製する(タブの右クリックメニュー)。元タブと同じ Path / Title の新規タブを
+    /// 元タブの直後に挿入し、複製したタブをアクティブにしてその内容を表示する。
+    /// 複製タブの戻る・進む履歴は引き継がず、新規(空)の履歴で開始する。
+    /// グループのタブ上限(20)到達時は複製せず OperationError を設定して false を返す。
+    /// </summary>
+    public bool DuplicateTab(FolderTabViewModel tab)
+    {
+        var groupVm = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
+        if (groupVm is null)
+        {
+            return false;
+        }
+
+        var result = _tabManager.DuplicateTab(tab.Id);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        var index = groupVm.Tabs.IndexOf(tab);
+        var duplicateVm = new FolderTabViewModel(result.Value!);
+        groupVm.Tabs.Insert(index + 1, duplicateVm);
+        ApplyActiveStates();
+        // 複製タブはアクティブになるため、新規(空)の履歴を接続して内容を表示する
+        Folder.AttachHistory(duplicateVm.History);
+        Folder.ShowFolder(duplicateVm.Path);
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
+    /// アクティブタブを閉じる(Ctrl+W)。中クリックでの閉じると同一の経路(CloseTab)を通り、
+    /// ClosedTab 履歴へ積む。最後のタブを閉じた場合の挙動も中クリックに統一する。
+    /// グループ名編集中は何も実行しない(編集状態を維持する)。
+    /// </summary>
+    public bool CloseActiveTab()
+    {
+        if (IsRenameInProgress)
+        {
+            return false;
+        }
+
+        if (_tabManager.ActiveTabId is not string activeId
+            || FindTabViewModel(activeId) is not { } activeVm)
+        {
+            return false;
+        }
+
+        return CloseTab(activeVm);
+    }
+
+    /// <summary>
+    /// グループを削除する(グループ名の右クリックメニュー)。最後の1グループは削除できず、
+    /// その場合は OperationError を設定して false を返す。削除対象がアクティブグループの場合は
+    /// 隣接グループが新しいアクティブになり、そのアクティブタブのフォルダ内容を表示する。
+    /// 削除されたグループ内のタブは ClosedTab 履歴へ積まない(明示的なグループ破棄操作のため)。
+    /// 確認ダイアログ(タブを持つグループの削除時)は View 側で表示してから本メソッドを呼ぶ。
+    /// </summary>
+    public bool RemoveGroup(string groupId)
+    {
+        var wasActiveGroup = _tabManager.ActiveGroupId == groupId;
+        var result = _tabManager.RemoveGroup(groupId);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        if (Groups.FirstOrDefault(g => g.Id == groupId) is { } groupVm)
+        {
+            Groups.Remove(groupVm);
+        }
+
+        ApplyActiveStates();
+
+        // アクティブグループを削除した場合は新しいアクティブタブのフォルダ内容を表示する
+        if (wasActiveGroup && _tabManager.ActiveTabId is string newActiveId
+            && FindTabViewModel(newActiveId) is { } newActiveVm)
+        {
+            Folder.AttachHistory(newActiveVm.History);
+            Folder.ShowFolder(newActiveVm.Path);
+        }
+
+        OperationError = null;
         return true;
     }
 
@@ -273,7 +384,153 @@ public sealed class MainViewModel : ViewModelBase
             return false;
         }
 
-        Favorites.Add(new FavoriteItemViewModel(result.Value!));
+        Favorites.Add(CreateFavoriteItem(result.Value!));
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
+    /// お気に入り項目 ViewModel を生成し、リネーム処理(同名衝突解決)を親 ViewModel に接続する。
+    /// </summary>
+    private FavoriteItemViewModel CreateFavoriteItem(SavedTabGroup model)
+        => new(model, newName => RenameFavorite(model.Id, newName));
+
+    /// <summary>
+    /// お気に入りをリネームする(右クリックメニュー「名前の変更」。Task 6-4)。
+    /// 前後の空白を除去し、空文字なら元の名前を維持して何もしない。
+    /// 同名衝突は保存時と同じ規則(完全一致で連番付与・上書きしない)で FavoritesService が解決する。
+    /// </summary>
+    public bool RenameFavorite(string favoriteId, string newName)
+    {
+        var trimmed = newName.Trim();
+        if (trimmed.Length == 0)
+        {
+            return false;
+        }
+
+        var result = _favorites.RenameFavorite(favoriteId, trimmed);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        if (Favorites.FirstOrDefault(f => f.Id == favoriteId) is { } itemVm)
+        {
+            itemVm.RefreshName();
+        }
+
+        OperationError = null;
+        return true;
+    }
+
+    /// <summary>
+    /// お気に入りを指定された Id 順に並べ替える(行内 D&amp;D。Task 6-4)。
+    /// FavoritesService の保存順と Favorites コレクションの表示順を同じ順序へ同期する
+    /// (順序は次回起動時に settings.json から復元される)。
+    /// </summary>
+    public void ReorderFavorites(IReadOnlyList<string> orderedIds)
+    {
+        _favorites.ReorderFavorites(orderedIds);
+
+        for (var target = 0; target < orderedIds.Count; target++)
+        {
+            var id = orderedIds[target];
+            var current = -1;
+            for (var i = target; i < Favorites.Count; i++)
+            {
+                if (Favorites[i].Id == id)
+                {
+                    current = i;
+                    break;
+                }
+            }
+
+            if (current >= 0 && current != target)
+            {
+                Favorites.Move(current, target);
+            }
+        }
+    }
+
+    /// <summary>
+    /// グループ内のタブを指定された Id 順に並べ替える(グループ内 D&amp;D。Task 7-1)。
+    /// TabManagerService の TabGroup.Tabs を表示順(TabGroupViewModel.Tabs)と同じ順序へ同期する
+    /// (順序は次回起動時に settings.json から復元される)。タブの同一性は変わらないため
+    /// アクティブタブ・選択状態は保持される。
+    /// </summary>
+    public void ReorderTabsInGroup(string groupId, IReadOnlyList<string> orderedIds)
+        => _tabManager.ReorderTabs(groupId, orderedIds);
+
+    /// <summary>
+    /// グループ段を並べ替える(グループ段の D&amp;D。Task 7-3)。<paramref name="source"/> 段を
+    /// <paramref name="targetGroupId"/> の段の直前(<paramref name="below"/> が false)または
+    /// 直後(true)へ移動する。表示順(Groups)と Core のモデル(TabManagerService.Groups)を
+    /// 同じ順序へ同期する(順序は次回起動時に settings.json から復元される)。
+    /// 並べ替えはグループ・タブの同一性を変えないため、アクティブグループ・アクティブタブ・
+    /// 各グループ内容は保持される。位置が変わらない場合は何もせず false を返す。
+    /// </summary>
+    public bool MoveGroup(TabGroupViewModel source, string targetGroupId, bool below)
+    {
+        var target = Groups.FirstOrDefault(g => g.Id == targetGroupId);
+        if (target is null || ReferenceEquals(source, target))
+        {
+            return false;
+        }
+
+        var oldIndex = Groups.IndexOf(source);
+        var targetIndex = Groups.IndexOf(target);
+        if (oldIndex < 0 || targetIndex < 0)
+        {
+            return false;
+        }
+
+        // 挿入位置を移動前座標で求め、source 自身を取り除いた後の座標へ補正する(MoveTab と同じ規則)
+        var insertIndex = below ? targetIndex + 1 : targetIndex;
+        var newIndex = insertIndex > oldIndex ? insertIndex - 1 : insertIndex;
+        newIndex = Math.Clamp(newIndex, 0, Groups.Count - 1);
+        if (newIndex == oldIndex)
+        {
+            return false;
+        }
+
+        Groups.Move(oldIndex, newIndex);
+        _tabManager.ReorderGroups(Groups.Select(g => g.Id).ToList());
+        return true;
+    }
+
+    /// <summary>
+    /// タブを別グループへ移動する(グループ間 D&amp;D。Task 7-2)。<paramref name="tab"/> を
+    /// 移動先グループの <paramref name="insertIndex"/> の位置へ移し、Core のモデルと
+    /// 表示順(各グループの Tabs)を同じ順序へ同期する。移動先グループのタブ上限(20)到達時は
+    /// 移動せず OperationError を設定して false を返す。移動元が空になってもグループは維持する
+    /// (空グループの自動クローズは「タブを閉じる」操作に限定。SPEC Task 7-2)。
+    /// 移動したタブがアクティブだった場合は移動先グループで引き続きアクティブになる
+    /// (タブの同一性・履歴・表示中フォルダは変わらないため、フォルダの再読み込みは行わない)。
+    /// 同一グループ内の移動は受け付けない(並べ替えは <see cref="ReorderTabsInGroup"/> を使う)。
+    /// </summary>
+    public bool MoveTabToGroup(FolderTabViewModel tab, string targetGroupId, int insertIndex)
+    {
+        var sourceGroupVm = Groups.FirstOrDefault(g => g.Tabs.Contains(tab));
+        var targetGroupVm = Groups.FirstOrDefault(g => g.Id == targetGroupId);
+        if (sourceGroupVm is null || targetGroupVm is null
+            || ReferenceEquals(sourceGroupVm, targetGroupVm))
+        {
+            return false;
+        }
+
+        var result = _tabManager.MoveTabToGroup(tab.Id, targetGroupId, insertIndex);
+        if (!result.IsSuccess)
+        {
+            OperationError = result.ErrorMessage;
+            return false;
+        }
+
+        // 表示順を Core と同じ位置へ同期する(Core と同一の補正で挿入位置を一致させる)
+        sourceGroupVm.Tabs.Remove(tab);
+        var clamped = Math.Clamp(insertIndex, 0, targetGroupVm.Tabs.Count);
+        targetGroupVm.Tabs.Insert(clamped, tab);
+        ApplyActiveStates();
         OperationError = null;
         return true;
     }
@@ -374,6 +631,31 @@ public sealed class MainViewModel : ViewModelBase
         return true;
     }
 
+    /// <summary>戻る(Alt+左)。アクティブタブの履歴で戻る操作を行う。</summary>
+    public bool NavigateBack() => InvokeFolderNavigation(Folder.BackCommand);
+
+    /// <summary>進む(Alt+右)。アクティブタブの履歴で進む操作を行う。</summary>
+    public bool NavigateForward() => InvokeFolderNavigation(Folder.ForwardCommand);
+
+    /// <summary>上の階層へ移動する(Alt+上)。</summary>
+    public bool NavigateUp() => InvokeFolderNavigation(Folder.NavigateUpCommand);
+
+    /// <summary>
+    /// 既存のナビゲーションコマンド(戻る/進む/上へ)を Alt 系ショートカットから実行する。
+    /// グループ名編集中は何も実行しない(編集状態を維持する)。コマンド不可(戻る/進む/上へ不可)の
+    /// 状態では実行せず、状態を変更しない。実行した場合のみ true を返す。
+    /// </summary>
+    private bool InvokeFolderNavigation(RelayCommand command)
+    {
+        if (IsRenameInProgress || !command.CanExecute(null))
+        {
+            return false;
+        }
+
+        command.Execute(null);
+        return true;
+    }
+
     /// <summary>
     /// 指定グループの末尾に新規タブを追加する(追加されたタブはアクティブになる)。
     /// 上限到達などの失敗時は OperationError を設定して null を返す。
@@ -420,6 +702,7 @@ public sealed class MainViewModel : ViewModelBase
             WindowWidth = windowWidth,
             WindowHeight = windowHeight,
             LeftPaneWidth = leftPaneWidth,
+            IsFolderTreeVisible = _isFolderTreeVisible,
         };
 
     /// <summary>
@@ -448,7 +731,12 @@ public sealed class MainViewModel : ViewModelBase
             group,
             tab => SelectTab(tab),
             tab => CloseTab(tab),
-            () => SaveGroupAsFavorite(group.Id));
+            () => SaveGroupAsFavorite(group.Id),
+            () => RemoveGroup(group.Id),
+            tab => DuplicateTab(tab),
+            orderedIds => ReorderTabsInGroup(group.Id, orderedIds),
+            (source, insertIndex) => MoveTabToGroup(source, group.Id, insertIndex),
+            (source, below) => MoveGroup(source, group.Id, below));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。

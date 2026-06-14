@@ -67,16 +67,34 @@ public class TabCloseTests
     }
 
     [Fact]
-    public void CloseTab_最後のタブを閉じてもクラッシュしない()
+    public void CloseTab_アプリ内最後の1タブは閉じられない()
     {
         var (vm, _) = Create();
         var initial = Assert.Single(vm.Groups[0].Tabs);
 
         var ok = vm.CloseTab(initial);
 
+        Assert.False(ok);
+        Assert.Single(vm.Groups[0].Tabs); // タブは残る
+        Assert.Same(initial, vm.Groups[0].Tabs[0]);
+        Assert.Single(vm.Groups); // グループも残る
+    }
+
+    [Fact]
+    public void CloseTab_グループの最後のタブを閉じると空グループも閉じる()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var (vm, _) = Create(userProfile);
+        Assert.True(vm.AddGroupWithDefaultTab()); // 「作業2」を追加、初期タブ1個
+        var group2 = vm.Groups[1];
+        var only = Assert.Single(group2.Tabs);
+
+        var ok = vm.CloseTab(only);
+
         Assert.True(ok);
-        Assert.Empty(vm.Groups[0].Tabs);
-        Assert.Single(vm.Groups); // グループ自体は残る
+        // group2 は空になったので自動クローズされ、表示からも消える
+        Assert.Single(vm.Groups);
+        Assert.DoesNotContain(group2, vm.Groups);
     }
 
     [Fact]

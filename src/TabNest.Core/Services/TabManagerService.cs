@@ -197,6 +197,17 @@ public sealed class TabManagerService
                 "最後のタブグループは削除できません。");
         }
 
+        RemoveGroupCore(group);
+        return TabOperationResult<TabGroup>.Success(group);
+    }
+
+    /// <summary>
+    /// グループを実際に除去し、アクティブグループだった場合のアクティブ追従を行う。
+    /// 削除したグループがアクティブだった場合は先頭の残存グループの選択タブをアクティブにする。
+    /// 呼び出し側で下限(MinGroups)を確認してから使う。
+    /// </summary>
+    private void RemoveGroupCore(TabGroup group)
+    {
         _groups.Remove(group);
 
         if (ActiveGroupId == group.Id)
@@ -210,8 +221,6 @@ public sealed class TabManagerService
                 SetActiveTab(selectedTabId);
             }
         }
-
-        return TabOperationResult<TabGroup>.Success(group);
     }
 
     /// <summary>
@@ -247,14 +256,60 @@ public sealed class TabManagerService
     }
 
     /// <summary>
+    /// タブを複製する。元タブと同じ Path / Title の新規タブを元タブの直後に挿入し、
+    /// 複製したタブをアクティブにする(SPEC Task 6-3)。複製タブには新しい Id を採番する。
+    /// 戻る・進む履歴は ViewModel 層が保持するため、本 DTO の複製では引き継がれない。
+    /// グループ毎のタブ数上限(20)到達時は複製せず失敗結果を返す。
+    /// </summary>
+    public TabOperationResult<FolderTab> DuplicateTab(string tabId)
+    {
+        var group = _groups.FirstOrDefault(g => g.Tabs.Any(t => t.Id == tabId));
+        if (group is null)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabNotFound,
+                "指定されたタブが見つかりません。");
+        }
+
+        if (group.Tabs.Count >= MaxTabsPerGroup)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabLimitReached,
+                $"1グループのタブは最大 {MaxTabsPerGroup} 個までです。");
+        }
+
+        var index = group.Tabs.FindIndex(t => t.Id == tabId);
+        var source = group.Tabs[index];
+        var duplicate = new FolderTab
+        {
+            Id = Guid.NewGuid().ToString(),
+            Path = source.Path,
+            Title = source.Title,
+            CreatedAt = DateTime.Now,
+        };
+        group.Tabs.Insert(index + 1, duplicate);
+        SetActiveTab(duplicate.Id);
+        return TabOperationResult<FolderTab>.Success(duplicate);
+    }
+
+    /// <summary>
     /// タブを閉じる。アクティブタブを閉じた場合は同グループ内の隣のタブ
-    /// (次を優先、無ければ前)をアクティブにする。グループが空になった場合は
-    /// アクティブタブなし(null)となる。タブが存在しない場合は false。
+    /// (次を優先、無ければ前)をアクティブにする。閉じた結果グループのタブが0個になった場合は
+    /// その空グループも自動的に閉じる(グループ削除 RemoveGroup と同じアクティブ追従規則に従う)。
+    /// ただしアプリ内の最後の1タブは閉じられず、状態を変更せず false を返す
+    /// (常にタブ1個以上を保持する)。タブが存在しない場合も false。
+    /// 閉じたタブは(自動クローズで消える最後の1タブも含め)ClosedTab 履歴へ積む。
     /// </summary>
     public bool CloseTab(string tabId)
     {
         var group = _groups.FirstOrDefault(g => g.Tabs.Any(t => t.Id == tabId));
         if (group is null)
+        {
+            return false;
+        }
+
+        // アプリ内の最後の1タブは閉じられない(常にタブ1個以上・グループ1段以上を保持する)
+        if (_groups.Sum(g => g.Tabs.Count) <= 1)
         {
             return false;
         }
@@ -274,6 +329,14 @@ public sealed class TabManagerService
         while (_closedTabs.Count > MaxClosedTabs)
         {
             _closedTabs.RemoveAt(0);
+        }
+
+        // 空になったグループの自動クローズ(タブを閉じる操作に限定。D&D 移動は対象外)。
+        // 最後の1タブガードにより、ここに到達する空グループは常に他グループが残る。
+        if (group.Tabs.Count == 0 && _groups.Count > MinGroups)
+        {
+            RemoveGroupCore(group);
+            return true;
         }
 
         if (group.SelectedTabId == tabId)
@@ -297,6 +360,133 @@ public sealed class TabManagerService
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// 同一グループ内のタブを指定された Id 順に並べ替える(Task 7-1。グループ内 D&amp;D の結果を反映)。
+    /// orderedIds に含まれない既存タブは末尾に元の相対順で残し、未知の Id は無視する(防御的)。
+    /// 並べ替えはタブの同一性(Id)を変えないため、アクティブタブ・SelectedTabId は保持される。
+    /// グループが存在しない場合は false。
+    /// </summary>
+    public bool ReorderTabs(string groupId, IReadOnlyList<string> orderedIds)
+    {
+        if (FindGroup(groupId) is not TabGroup group)
+        {
+            return false;
+        }
+
+        var reordered = new List<FolderTab>(group.Tabs.Count);
+        foreach (var id in orderedIds)
+        {
+            var tab = group.Tabs.FirstOrDefault(t => t.Id == id);
+            if (tab is not null && !reordered.Contains(tab))
+            {
+                reordered.Add(tab);
+            }
+        }
+
+        foreach (var tab in group.Tabs)
+        {
+            if (!reordered.Contains(tab))
+            {
+                reordered.Add(tab);
+            }
+        }
+
+        group.Tabs.Clear();
+        group.Tabs.AddRange(reordered);
+        return true;
+    }
+
+    /// <summary>
+    /// タブグループ(段)を指定された Id 順に並べ替える(Task 7-3。グループ段の D&amp;D の結果を反映)。
+    /// orderedIds に含まれない既存グループは末尾に元の相対順で残し、未知の Id は無視する(防御的)。
+    /// 並べ替えはグループの同一性(Id)を変えないため、アクティブグループ・アクティブタブ・各グループ内容は保持される。
+    /// 並べ替え後の段順は CreateAppSettings 経由で settings.json に保存される。
+    /// </summary>
+    public bool ReorderGroups(IReadOnlyList<string> orderedIds)
+    {
+        var reordered = new List<TabGroup>(_groups.Count);
+        foreach (var id in orderedIds)
+        {
+            var group = _groups.FirstOrDefault(g => g.Id == id);
+            if (group is not null && !reordered.Contains(group))
+            {
+                reordered.Add(group);
+            }
+        }
+
+        foreach (var group in _groups)
+        {
+            if (!reordered.Contains(group))
+            {
+                reordered.Add(group);
+            }
+        }
+
+        _groups.Clear();
+        _groups.AddRange(reordered);
+        return true;
+    }
+
+    /// <summary>
+    /// タブを別グループへ移動する(Task 7-2。グループ間 D&amp;D の結果を反映)。
+    /// <paramref name="insertIndex"/> は移動先グループにおける挿入位置(0..Count、範囲外は補正)。
+    /// 移動先グループのタブ上限(20)到達時は移動せず失敗結果を返す(状態は一切変更しない)。
+    /// 移動元の SelectedTabId が移動したタブを指していた場合は隣のタブ(次優先・無ければ前)へ追従させ、
+    /// 移動したタブがアクティブだった場合は移動先グループで引き続きアクティブにする
+    /// (ActiveGroupId も移動先へ更新)。移動元が空になってもグループは維持する
+    /// (空グループの自動クローズは「タブを閉じる」操作に限定。SPEC Task 7-2)。
+    /// 本メソッドは別グループへの移動を想定する(同一グループ内の並べ替えは <see cref="ReorderTabs"/> を使う)。
+    /// タブ・グループが存在しない場合は失敗結果を返す。
+    /// </summary>
+    public TabOperationResult<FolderTab> MoveTabToGroup(string tabId, string targetGroupId, int insertIndex)
+    {
+        var sourceGroup = _groups.FirstOrDefault(g => g.Tabs.Any(t => t.Id == tabId));
+        if (sourceGroup is null)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabNotFound,
+                "指定されたタブが見つかりません。");
+        }
+
+        if (FindGroup(targetGroupId) is not TabGroup targetGroup)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.GroupNotFound,
+                "移動先のグループが見つかりません。");
+        }
+
+        if (!ReferenceEquals(sourceGroup, targetGroup) && targetGroup.Tabs.Count >= MaxTabsPerGroup)
+        {
+            return TabOperationResult<FolderTab>.Failure(
+                TabOperationError.TabLimitReached,
+                $"移動先グループのタブは最大 {MaxTabsPerGroup} 個までです。");
+        }
+
+        var index = sourceGroup.Tabs.FindIndex(t => t.Id == tabId);
+        var tab = sourceGroup.Tabs[index];
+        sourceGroup.Tabs.RemoveAt(index);
+
+        var clamped = Math.Clamp(insertIndex, 0, targetGroup.Tabs.Count);
+        targetGroup.Tabs.Insert(clamped, tab);
+
+        // 移動元の選択タブ追従(移動したタブが選択中だった場合は隣のタブへ。空になれば null)
+        if (sourceGroup.SelectedTabId == tabId)
+        {
+            var neighbor = index < sourceGroup.Tabs.Count
+                ? sourceGroup.Tabs[index]
+                : sourceGroup.Tabs.LastOrDefault();
+            sourceGroup.SelectedTabId = neighbor?.Id;
+        }
+
+        // アクティブだったタブは移動先グループで引き続きアクティブにする(ActiveGroupId も追従)
+        if (ActiveTabId == tabId)
+        {
+            SetActiveTab(tabId);
+        }
+
+        return TabOperationResult<FolderTab>.Success(tab);
     }
 
     /// <summary>

@@ -99,6 +99,7 @@ public class ClosedTabTests
         var service = new TabManagerService();
         var fullGroup = AddGroup(service, "作業1");
         var activeGroup = AddGroup(service, "作業2");
+        AddTab(service, fullGroup.Id, @"C:\keep"); // 最後の1タブガード回避用に残す
         var victim = AddTab(service, fullGroup.Id, @"C:\victim");
         service.CloseTab(victim.Id);
         for (var i = 0; i < TabManagerService.MaxTabsPerGroup; i++)
@@ -118,14 +119,24 @@ public class ClosedTabTests
     [Fact]
     public void RestoreClosedTab_TabIndexが範囲外なら末尾に追加される()
     {
+        // 空グループ + 閉じたタブ履歴をセッションから復元して再現する。
+        // (Task 6-6 以降、CloseTab では最後の1タブが残るため空グループは作れない。
+        //  空グループは RestoreSession / D&D 移動でのみ生じる正規の状態)
         var service = new TabManagerService();
-        var group = AddGroup(service, "作業1");
-        var a = AddTab(service, group.Id, @"C:\a");
-        var b = AddTab(service, group.Id, @"C:\b");
-        var c = AddTab(service, group.Id, @"C:\c");
-        service.CloseTab(c.Id); // TabIndex = 2 で記録
-        service.CloseTab(a.Id);
-        service.CloseTab(b.Id); // グループは空になった
+        var group = new TabGroup { Id = "g1", Name = "作業1" }; // タブ0個
+        var settings = new AppSettings
+        {
+            TabGroups = { group },
+            ClosedTabs =
+            {
+                // 履歴は古い順(末尾が最後に閉じたタブ)。c → a → b の順で閉じた想定
+                new ClosedTab { Path = @"C:\c", Title = "c", GroupId = "g1", TabIndex = 2 },
+                new ClosedTab { Path = @"C:\a", Title = "a", GroupId = "g1", TabIndex = 0 },
+                new ClosedTab { Path = @"C:\b", Title = "b", GroupId = "g1", TabIndex = 1 },
+            },
+        };
+        Assert.True(service.RestoreSession(settings));
+        Assert.Empty(group.Tabs);
 
         // 最後に閉じた b(TabIndex=1)から復元 → 空グループでは範囲外なので末尾(先頭)
         var first = service.RestoreClosedTab();
@@ -148,6 +159,7 @@ public class ClosedTabTests
     {
         var service = new TabManagerService();
         var group = AddGroup(service, "作業1");
+        AddTab(service, group.Id, @"C:\keep"); // 常に残すタブ(最後の1タブガード回避)
         for (var i = 0; i < TabManagerService.MaxClosedTabs + 5; i++)
         {
             var tab = AddTab(service, group.Id, $@"C:\t{i}");
@@ -165,6 +177,7 @@ public class ClosedTabTests
     {
         var service = new TabManagerService();
         var group = AddGroup(service, "作業1");
+        AddTab(service, group.Id, @"C:\keep"); // 最後の1タブガード回避用に残す
         var victim = AddTab(service, group.Id, @"C:\victim");
         service.CloseTab(victim.Id);
         for (var i = 0; i < TabManagerService.MaxTabsPerGroup; i++)

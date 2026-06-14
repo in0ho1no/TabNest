@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using TabNest.Core.Models;
+using TabNest.Core.Services;
 
 namespace TabNest.ViewModels;
 
@@ -11,21 +12,38 @@ public sealed class TabGroupViewModel : ViewModelBase
     private readonly TabGroup _model;
     private readonly Action<FolderTabViewModel>? _selectTab;
     private readonly Action<FolderTabViewModel>? _closeTab;
+    private readonly Action<FolderTabViewModel>? _duplicateTab;
     private readonly Action? _saveAsFavorite;
+    private readonly Action? _removeGroup;
+    private readonly Action<IReadOnlyList<string>>? _reorderTabs;
+    private readonly Func<FolderTabViewModel, int, bool>? _moveTabIntoGroup;
+    private readonly Func<TabGroupViewModel, bool, bool>? _moveGroupHere;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
+    private bool _isDropAbove;
+    private bool _isDropBelow;
 
     public TabGroupViewModel(
         TabGroup model,
         Action<FolderTabViewModel>? selectTab = null,
         Action<FolderTabViewModel>? closeTab = null,
-        Action? saveAsFavorite = null)
+        Action? saveAsFavorite = null,
+        Action? removeGroup = null,
+        Action<FolderTabViewModel>? duplicateTab = null,
+        Action<IReadOnlyList<string>>? reorderTabs = null,
+        Func<FolderTabViewModel, int, bool>? moveTabIntoGroup = null,
+        Func<TabGroupViewModel, bool, bool>? moveGroupHere = null)
     {
         _model = model;
         _selectTab = selectTab;
         _closeTab = closeTab;
         _saveAsFavorite = saveAsFavorite;
+        _removeGroup = removeGroup;
+        _duplicateTab = duplicateTab;
+        _reorderTabs = reorderTabs;
+        _moveTabIntoGroup = moveTabIntoGroup;
+        _moveGroupHere = moveGroupHere;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -40,8 +58,125 @@ public sealed class TabGroupViewModel : ViewModelBase
     /// <summary>タブを中クリックで閉じる(親 ViewModel に委譲)。</summary>
     public void CloseTab(FolderTabViewModel tab) => _closeTab?.Invoke(tab);
 
+    /// <summary>タブを複製する(タブの右クリックメニュー。親 ViewModel に委譲)。</summary>
+    public void DuplicateTab(FolderTabViewModel tab) => _duplicateTab?.Invoke(tab);
+
     /// <summary>このグループをお気に入りに保存する(グループ名の右クリックメニュー。親 ViewModel に委譲)。</summary>
     public void SaveAsFavorite() => _saveAsFavorite?.Invoke();
+
+    /// <summary>このグループを削除する(グループ名の右クリックメニュー。親 ViewModel に委譲)。</summary>
+    public void RemoveGroup() => _removeGroup?.Invoke();
+
+    /// <summary>このグループがタブを1個以上持つか(削除時の確認ダイアログ要否の判定に使う)。</summary>
+    public bool HasTabs => Tabs.Count > 0;
+
+    /// <summary>
+    /// グループ内 D&amp;D でタブを並べ替える(Task 7-1)。<paramref name="insertIndex"/> は
+    /// 移動前のリスト座標における挿入位置(その位置にあるタブの直前へ挿入する。Count なら末尾)。
+    /// 表示順(Tabs)とモデル(TabGroup.Tabs)の双方を同じ順序へ更新する。
+    /// タブの同一性は変わらないためアクティブタブ・選択状態は保持される。
+    /// 並べ替えが発生した場合は true、対象外・位置変化なしの場合は false を返す。
+    /// </summary>
+    public bool MoveTab(FolderTabViewModel source, int insertIndex)
+    {
+        ClearDropIndicators();
+
+        var oldIndex = Tabs.IndexOf(source);
+        if (oldIndex < 0)
+        {
+            return false;
+        }
+
+        // 挿入位置を移動前座標で受け取り、source 自身を取り除いた後の座標へ補正する
+        var newIndex = insertIndex > oldIndex ? insertIndex - 1 : insertIndex;
+        newIndex = Math.Clamp(newIndex, 0, Tabs.Count - 1);
+        if (newIndex == oldIndex)
+        {
+            return false;
+        }
+
+        Tabs.Move(oldIndex, newIndex);
+        _reorderTabs?.Invoke(Tabs.Select(t => t.Id).ToList());
+        return true;
+    }
+
+    /// <summary>このグループのタブ数が上限(20)に達しているか(グループ間 D&amp;D の受け入れ判定。Task 7-2)。</summary>
+    public bool IsTabLimitReached => Tabs.Count >= TabManagerService.MaxTabsPerGroup;
+
+    /// <summary>
+    /// 別グループのタブを、このグループの <paramref name="insertIndex"/> の位置へ移動して受け入れる
+    /// (グループ間 D&amp;D。Task 7-2)。実際のモデル更新と表示順同期は親 ViewModel に委譲する。
+    /// 受け入れに成功した場合は true、上限到達などで移動しなかった場合は false を返す。
+    /// </summary>
+    public bool MoveTabFromOtherGroup(FolderTabViewModel source, int insertIndex)
+    {
+        ClearDropIndicators();
+        return _moveTabIntoGroup?.Invoke(source, insertIndex) ?? false;
+    }
+
+    /// <summary>
+    /// グループ内 D&amp;D 中の挿入位置インジケータを設定する(Task 7-1)。
+    /// 指定タブの直前(<paramref name="after"/> が false)または直後(true)に1か所だけ表示し、
+    /// 他のタブのインジケータはすべて消す。<paramref name="target"/> が null なら全消去する。
+    /// </summary>
+    public void SetDropIndicator(FolderTabViewModel? target, bool after)
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.IsDropBefore = !after && ReferenceEquals(tab, target);
+            tab.IsDropAfter = after && ReferenceEquals(tab, target);
+        }
+    }
+
+    /// <summary>グループ内 D&amp;D 終了時に挿入位置インジケータをすべて消す(Task 7-1)。</summary>
+    public void ClearDropIndicators()
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.IsDropBefore = false;
+            tab.IsDropAfter = false;
+        }
+    }
+
+    /// <summary>グループ段の D&amp;D で、この段の上端に挿入位置インジケータを表示するか(Task 7-3)。</summary>
+    public bool IsDropAbove
+    {
+        get => _isDropAbove;
+        set => SetProperty(ref _isDropAbove, value);
+    }
+
+    /// <summary>グループ段の D&amp;D で、この段の下端に挿入位置インジケータを表示するか(Task 7-3)。</summary>
+    public bool IsDropBelow
+    {
+        get => _isDropBelow;
+        set => SetProperty(ref _isDropBelow, value);
+    }
+
+    /// <summary>
+    /// グループ段の D&amp;D 中、この段を基準とする挿入位置インジケータを設定する(Task 7-3)。
+    /// <paramref name="below"/> が false ならこの段の上、true なら下に表示する。
+    /// </summary>
+    public void SetGroupDropIndicator(bool below)
+    {
+        IsDropAbove = !below;
+        IsDropBelow = below;
+    }
+
+    /// <summary>グループ段の D&amp;D 用インジケータをこの段から消す(Task 7-3)。</summary>
+    public void ClearGroupDropIndicator()
+    {
+        IsDropAbove = false;
+        IsDropBelow = false;
+    }
+
+    /// <summary>
+    /// グループ段の D&amp;D で、ドラッグ中の <paramref name="source"/> 段をこの段の位置へ移動する(Task 7-3)。
+    /// <paramref name="below"/> が false ならこの段の直前、true なら直後へ挿入する。
+    /// 実際の並べ替え(Groups コレクションとモデルの同期)は親 ViewModel に委譲する。
+    /// 並べ替えが発生した場合は true を返す。
+    /// </summary>
+    public bool MoveGroupHere(TabGroupViewModel source, bool below)
+        => _moveGroupHere?.Invoke(source, below) ?? false;
 
     public string Id => _model.Id;
 

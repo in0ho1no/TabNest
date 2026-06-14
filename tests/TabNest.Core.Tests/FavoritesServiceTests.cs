@@ -134,6 +134,82 @@ public class FavoritesServiceTests
     }
 
     [Fact]
+    public void リネーム_衝突しない名前ならそのまま変更される()
+    {
+        var service = new FavoritesService();
+        var saved = service.SaveFavorite(CreateGroup("作業A", @"C:\a")).Value!;
+
+        var result = service.RenameFavorite(saved.Id, "資料");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("資料", result.Value!.Name);
+        Assert.Equal("資料", Assert.Single(service.SavedGroups).Name);
+    }
+
+    [Fact]
+    public void リネーム_既存の別お気に入りと同名なら連番が付く()
+    {
+        var service = new FavoritesService();
+        service.SaveFavorite(CreateGroup("作業A", @"C:\a"));
+        var target = service.SaveFavorite(CreateGroup("作業B", @"C:\b")).Value!;
+
+        var result = service.RenameFavorite(target.Id, "作業A");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("作業A (2)", result.Value!.Name);
+    }
+
+    [Fact]
+    public void リネーム_自分自身の現在名に変更しても連番は付かない()
+    {
+        var service = new FavoritesService();
+        var saved = service.SaveFavorite(CreateGroup("作業A", @"C:\a")).Value!;
+
+        var result = service.RenameFavorite(saved.Id, "作業A");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("作業A", result.Value!.Name);
+    }
+
+    [Fact]
+    public void リネーム_存在しないIdは失敗する()
+    {
+        var service = new FavoritesService();
+
+        var result = service.RenameFavorite("missing", "新名称");
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(TabOperationError.FavoriteNotFound, result.Error);
+    }
+
+    [Fact]
+    public void 並び替え_指定したId順に並び順が変わる()
+    {
+        var service = new FavoritesService();
+        var a = service.SaveFavorite(CreateGroup("A", @"C:\a")).Value!;
+        var b = service.SaveFavorite(CreateGroup("B", @"C:\b")).Value!;
+        var c = service.SaveFavorite(CreateGroup("C", @"C:\c")).Value!;
+
+        service.ReorderFavorites([c.Id, a.Id, b.Id]);
+
+        Assert.Equal(["C", "A", "B"], service.SavedGroups.Select(f => f.Name).ToArray());
+    }
+
+    [Fact]
+    public void 並び替え_orderedに含まれない項目は末尾に元の順序で残る()
+    {
+        var service = new FavoritesService();
+        var a = service.SaveFavorite(CreateGroup("A", @"C:\a")).Value!;
+        var b = service.SaveFavorite(CreateGroup("B", @"C:\b")).Value!;
+        var c = service.SaveFavorite(CreateGroup("C", @"C:\c")).Value!;
+
+        // b のみ先頭へ。未知の Id は無視され、残り(a, c)は元の相対順で末尾に残る
+        service.ReorderFavorites([b.Id, "unknown"]);
+
+        Assert.Equal(["B", "A", "C"], service.SavedGroups.Select(f => f.Name).ToArray());
+    }
+
+    [Fact]
     public void 復元_上限超過分は切り捨てられIdが空の要素には採番される()
     {
         var service = new FavoritesService();

@@ -50,8 +50,13 @@ dev-re トラックの Task 5-1〜5-7 で確立した知見。UI テストを書
 ## MenuFlyout / コンテキストメニュー
 - MenuFlyout は**別 HWND のポップアップ**として表示され、`appTopLevelWindow` でアタッチした
   セッションの要素ツリーに現れない。
-- → 対象を**右クリック（Win32）してから ↓ + Enter** で先頭メニュー項目を実行する。
-  項目が増えたらこの前提を見直すこと。
+- → 対象を**右クリック（Win32）でフライアウトを開いてから、短命の「デスクトップ Root セッション」を
+  生成して項目を AutomationId で検索しクリック**する（`UiActions.InvokeContextMenuItem(session, element, menuItemAutomationId)`）。
+  Root セッションは `AppiumOptions` に `app="Root"` / `deviceName="WindowsPC"` を設定して生成し、`using` で必ず Dispose。
+  メニュー項目には XAML で `AutomationProperties.AutomationId` を付与しておくこと。
+- ⚠️ 旧方式（右クリック後に `↓ + Enter` をキー送信して先頭項目を実行）は、環境により
+  別 HWND のフライアウトへキーが届かず項目が実行されないことがある（Task 6-1 で再現・廃止）。
+  キー送信ではなく Root セッション + AutomationId クリックを使う。
 
 ## SendKeys の文字化け（JIS 配列）
 - JIS 配列では SendKeys の `\` が `]` に化ける → **パスは `/` 区切りで送る**（Windows API は等価に解釈）。

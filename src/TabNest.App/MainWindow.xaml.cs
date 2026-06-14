@@ -86,4 +86,40 @@ public sealed partial class MainWindow : Window
         ViewModel.AddGroupWithDefaultTab();
         args.Handled = true;
     }
+
+    private void CloseActiveTabAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // グループ名編集中は VM 側で no-op になる(編集状態を維持)
+        ViewModel.CloseActiveTab();
+        args.Handled = true;
+    }
+
+    private void NavigateBackAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // 戻る不可・グループ名編集中は VM 側で no-op になる
+        ViewModel.NavigateBack();
+        args.Handled = true;
+    }
+
+    private void NavigateForwardAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // 進む不可・グループ名編集中は VM 側で no-op になる
+        ViewModel.NavigateForward();
+        args.Handled = true;
+    }
+
+    private void NavigateUpAccelerator_Invoked(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // 上へ不可・グループ名編集中は VM 側で no-op になる
+        ViewModel.NavigateUp();
+        args.Handled = true;
+    }
 }

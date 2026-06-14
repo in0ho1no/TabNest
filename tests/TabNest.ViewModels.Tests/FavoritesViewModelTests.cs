@@ -180,6 +180,67 @@ public class FavoritesViewModelTests
     }
 
     [Fact]
+    public void お気に入りをリネームでき表示名とセッションへ反映される()
+    {
+        var vm = CreateViewModel();
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[0].Id));
+        var favorite = Assert.Single(vm.Favorites);
+
+        Assert.True(vm.RenameFavorite(favorite.Id, "  資料セット  ")); // 前後空白はトリムされる
+
+        Assert.Equal("資料セット", favorite.Name);
+        var saved = Assert.Single(vm.CreateAppSettings(1280, 800, 220).SavedGroups);
+        Assert.Equal("資料セット", saved.Name);
+    }
+
+    [Fact]
+    public void リネーム時の同名衝突は連番が付く()
+    {
+        var vm = CreateViewModel();
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[0].Id)); // 作業1
+        Assert.True(vm.AddGroupWithDefaultTab());
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[1].Id)); // 作業2
+        var target = vm.Favorites[1];
+
+        Assert.True(vm.RenameFavorite(target.Id, "作業1"));
+
+        Assert.Equal("作業1 (2)", target.Name);
+    }
+
+    [Fact]
+    public void 空白のみへのリネームは無視され元の名前を維持する()
+    {
+        var vm = CreateViewModel();
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[0].Id));
+        var favorite = Assert.Single(vm.Favorites);
+
+        Assert.False(vm.RenameFavorite(favorite.Id, "   "));
+
+        Assert.Equal("作業1", favorite.Name);
+    }
+
+    [Fact]
+    public void お気に入りを並び替えると表示順とセッションへ反映され復元される()
+    {
+        var vm = CreateViewModel();
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[0].Id)); // 作業1
+        Assert.True(vm.AddGroupWithDefaultTab());
+        Assert.True(vm.SaveGroupAsFavorite(vm.Groups[1].Id)); // 作業2
+        var first = vm.Favorites[0].Id;
+        var second = vm.Favorites[1].Id;
+
+        vm.ReorderFavorites([second, first]); // 並びを反転
+
+        Assert.Equal(["作業2", "作業1"], vm.Favorites.Select(f => f.Name).ToArray());
+
+        // アプリ再起動相当: 保存した順序が復元される
+        var settings = vm.CreateAppSettings(1280, 800, 220);
+        Assert.Equal(["作業2", "作業1"], settings.SavedGroups.Select(f => f.Name).ToArray());
+        var restored = CreateViewModel(session: settings);
+        Assert.Equal(["作業2", "作業1"], restored.Favorites.Select(f => f.Name).ToArray());
+    }
+
+    [Fact]
     public void タブ状態が復元できなくてもお気に入りは復元される()
     {
         // TabGroups が空(初期起動状態へフォールバック)でも SavedGroups は保持する

@@ -1,4 +1,5 @@
 using OpenQA.Selenium;
+using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Appium.Windows;
 
 namespace TabNest.UiTests.Infrastructure;
@@ -108,19 +109,27 @@ public static class UiActions
     }
 
     /// <summary>
-    /// 右クリックで MenuFlyout を開き、先頭のメニュー項目をキーボードで実行する。
-    /// MenuFlyout は別ウィンドウのポップアップとして表示され、アタッチしたセッションの
-    /// 要素ツリーには現れないため、↓ → Enter のキーボード操作で選択する。
-    /// 注意: 「メニューの先頭項目が目的の項目」であることを前提とする。
-    /// メニュー項目を追加・並び替えする場合は、このヘルパーの利用箇所を必ず見直すこと。
+    /// 右クリックで MenuFlyout を開き、指定 AutomationId のメニュー項目をクリックして実行する。
+    /// MenuFlyout は別 HWND のポップアップとして表示され、appTopLevelWindow でアタッチした
+    /// セッションの要素ツリーには現れない。そのため「デスクトップ Root セッション」を短命で生成し、
+    /// デスクトップ全体の UIA ツリーからメニュー項目を AutomationId で検索してクリックする。
+    /// Root セッションは必ず Dispose する(using で使い捨て)。
     /// </summary>
-    public static void InvokeFirstContextMenuItem(AppSession session, IWebElement element)
+    public static void InvokeContextMenuItem(AppSession session, IWebElement element, string menuItemAutomationId)
     {
         RightClick(session, element);
         Thread.Sleep(500); // フライアウトの表示待ち
-        new OpenQA.Selenium.Interactions.Actions(session.Driver)
-            .SendKeys(Keys.ArrowDown + Keys.Enter)
-            .Perform();
+
+        var rootOptions = new AppiumOptions();
+        rootOptions.AddAdditionalCapability("app", "Root");
+        rootOptions.AddAdditionalCapability("deviceName", "WindowsPC");
+
+        using var rootSession = new WindowsDriver<WindowsElement>(
+            new Uri(UiTestEnvironment.WinAppDriverUrl), rootOptions, TimeSpan.FromSeconds(30));
+        rootSession.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
+
+        var menuItem = rootSession.FindElementByAccessibilityId(menuItemAutomationId);
+        menuItem.Click();
     }
 
     private static void MoveCursorToElementCenter(AppSession session, IWebElement element)
