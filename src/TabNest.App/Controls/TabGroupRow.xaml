@@ -46,11 +46,15 @@
                 Grid.Column="0"
                 MinWidth="80"
                 VerticalAlignment="Center"
-                CanDrag="True"
+                CanDrag="{x:Bind local:TabGroupRow.CanDragGroupName(ViewModel.IsEditingName), Mode=OneWay}"
                 DragStarting="GroupName_DragStarting"
                 DropCompleted="GroupName_DropCompleted">
                 <Grid.ContextFlyout>
                 <MenuFlyout>
+                    <MenuFlyoutItem
+                        AutomationProperties.AutomationId="RenameGroupMenuItem"
+                        Click="RenameGroup_Click"
+                        Text="名前の変更" />
                     <MenuFlyoutItem
                         AutomationProperties.AutomationId="SaveToFavoritesMenuItem"
                         Click="SaveToFavorites_Click"
