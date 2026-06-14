@@ -335,6 +335,53 @@ public class TabManagerServiceTests
     }
 
     [Fact]
+    public void ReorderGroups_指定順にグループ段が並べ替わる()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var g3 = AddGroup(service, "作業3");
+
+        var ok = service.ReorderGroups([g3.Id, g1.Id, g2.Id]);
+
+        Assert.True(ok);
+        Assert.Equal([g3.Id, g1.Id, g2.Id], service.Groups.Select(g => g.Id).ToArray());
+    }
+
+    [Fact]
+    public void ReorderGroups_並べ替えてもアクティブグループとアクティブタブが維持される()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var tab = AddTab(service, g2.Id, @"C:\a", "a");
+        // g2 のタブをアクティブにする
+        service.SetActiveTab(tab.Id);
+
+        service.ReorderGroups([g2.Id, g1.Id]);
+
+        Assert.Equal(g2.Id, service.ActiveGroupId);
+        Assert.Equal(tab.Id, service.ActiveTabId);
+        // 各グループの内容(タブ)も保持される
+        Assert.Same(tab, service.Groups.First(g => g.Id == g2.Id).Tabs.Single());
+    }
+
+    [Fact]
+    public void ReorderGroups_未知のIdは無視し未指定グループは末尾に元の順で残す()
+    {
+        var service = new TabManagerService();
+        var g1 = AddGroup(service, "作業1");
+        var g2 = AddGroup(service, "作業2");
+        var g3 = AddGroup(service, "作業3");
+
+        // g3 のみ先頭指定 + 存在しない Id。g1,g2 は元の相対順で末尾に残る
+        var ok = service.ReorderGroups([g3.Id, "no-such"]);
+
+        Assert.True(ok);
+        Assert.Equal([g3.Id, g1.Id, g2.Id], service.Groups.Select(g => g.Id).ToArray());
+    }
+
+    [Fact]
     public void MoveTabToGroup_別グループの指定位置へタブが移動する()
     {
         var service = new TabManagerService();

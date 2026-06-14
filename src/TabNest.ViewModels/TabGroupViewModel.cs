@@ -17,9 +17,12 @@ public sealed class TabGroupViewModel : ViewModelBase
     private readonly Action? _removeGroup;
     private readonly Action<IReadOnlyList<string>>? _reorderTabs;
     private readonly Func<FolderTabViewModel, int, bool>? _moveTabIntoGroup;
+    private readonly Func<TabGroupViewModel, bool, bool>? _moveGroupHere;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
+    private bool _isDropAbove;
+    private bool _isDropBelow;
 
     public TabGroupViewModel(
         TabGroup model,
@@ -29,7 +32,8 @@ public sealed class TabGroupViewModel : ViewModelBase
         Action? removeGroup = null,
         Action<FolderTabViewModel>? duplicateTab = null,
         Action<IReadOnlyList<string>>? reorderTabs = null,
-        Func<FolderTabViewModel, int, bool>? moveTabIntoGroup = null)
+        Func<FolderTabViewModel, int, bool>? moveTabIntoGroup = null,
+        Func<TabGroupViewModel, bool, bool>? moveGroupHere = null)
     {
         _model = model;
         _selectTab = selectTab;
@@ -39,6 +43,7 @@ public sealed class TabGroupViewModel : ViewModelBase
         _duplicateTab = duplicateTab;
         _reorderTabs = reorderTabs;
         _moveTabIntoGroup = moveTabIntoGroup;
+        _moveGroupHere = moveGroupHere;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -132,6 +137,46 @@ public sealed class TabGroupViewModel : ViewModelBase
             tab.IsDropAfter = false;
         }
     }
+
+    /// <summary>グループ段の D&amp;D で、この段の上端に挿入位置インジケータを表示するか(Task 7-3)。</summary>
+    public bool IsDropAbove
+    {
+        get => _isDropAbove;
+        set => SetProperty(ref _isDropAbove, value);
+    }
+
+    /// <summary>グループ段の D&amp;D で、この段の下端に挿入位置インジケータを表示するか(Task 7-3)。</summary>
+    public bool IsDropBelow
+    {
+        get => _isDropBelow;
+        set => SetProperty(ref _isDropBelow, value);
+    }
+
+    /// <summary>
+    /// グループ段の D&amp;D 中、この段を基準とする挿入位置インジケータを設定する(Task 7-3)。
+    /// <paramref name="below"/> が false ならこの段の上、true なら下に表示する。
+    /// </summary>
+    public void SetGroupDropIndicator(bool below)
+    {
+        IsDropAbove = !below;
+        IsDropBelow = below;
+    }
+
+    /// <summary>グループ段の D&amp;D 用インジケータをこの段から消す(Task 7-3)。</summary>
+    public void ClearGroupDropIndicator()
+    {
+        IsDropAbove = false;
+        IsDropBelow = false;
+    }
+
+    /// <summary>
+    /// グループ段の D&amp;D で、ドラッグ中の <paramref name="source"/> 段をこの段の位置へ移動する(Task 7-3)。
+    /// <paramref name="below"/> が false ならこの段の直前、true なら直後へ挿入する。
+    /// 実際の並べ替え(Groups コレクションとモデルの同期)は親 ViewModel に委譲する。
+    /// 並べ替えが発生した場合は true を返す。
+    /// </summary>
+    public bool MoveGroupHere(TabGroupViewModel source, bool below)
+        => _moveGroupHere?.Invoke(source, below) ?? false;
 
     public string Id => _model.Id;
 

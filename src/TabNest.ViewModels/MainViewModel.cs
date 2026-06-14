@@ -463,6 +463,43 @@ public sealed class MainViewModel : ViewModelBase
         => _tabManager.ReorderTabs(groupId, orderedIds);
 
     /// <summary>
+    /// グループ段を並べ替える(グループ段の D&amp;D。Task 7-3)。<paramref name="source"/> 段を
+    /// <paramref name="targetGroupId"/> の段の直前(<paramref name="below"/> が false)または
+    /// 直後(true)へ移動する。表示順(Groups)と Core のモデル(TabManagerService.Groups)を
+    /// 同じ順序へ同期する(順序は次回起動時に settings.json から復元される)。
+    /// 並べ替えはグループ・タブの同一性を変えないため、アクティブグループ・アクティブタブ・
+    /// 各グループ内容は保持される。位置が変わらない場合は何もせず false を返す。
+    /// </summary>
+    public bool MoveGroup(TabGroupViewModel source, string targetGroupId, bool below)
+    {
+        var target = Groups.FirstOrDefault(g => g.Id == targetGroupId);
+        if (target is null || ReferenceEquals(source, target))
+        {
+            return false;
+        }
+
+        var oldIndex = Groups.IndexOf(source);
+        var targetIndex = Groups.IndexOf(target);
+        if (oldIndex < 0 || targetIndex < 0)
+        {
+            return false;
+        }
+
+        // 挿入位置を移動前座標で求め、source 自身を取り除いた後の座標へ補正する(MoveTab と同じ規則)
+        var insertIndex = below ? targetIndex + 1 : targetIndex;
+        var newIndex = insertIndex > oldIndex ? insertIndex - 1 : insertIndex;
+        newIndex = Math.Clamp(newIndex, 0, Groups.Count - 1);
+        if (newIndex == oldIndex)
+        {
+            return false;
+        }
+
+        Groups.Move(oldIndex, newIndex);
+        _tabManager.ReorderGroups(Groups.Select(g => g.Id).ToList());
+        return true;
+    }
+
+    /// <summary>
     /// タブを別グループへ移動する(グループ間 D&amp;D。Task 7-2)。<paramref name="tab"/> を
     /// 移動先グループの <paramref name="insertIndex"/> の位置へ移し、Core のモデルと
     /// 表示順(各グループの Tabs)を同じ順序へ同期する。移動先グループのタブ上限(20)到達時は
@@ -698,7 +735,8 @@ public sealed class MainViewModel : ViewModelBase
             () => RemoveGroup(group.Id),
             tab => DuplicateTab(tab),
             orderedIds => ReorderTabsInGroup(group.Id, orderedIds),
-            (source, insertIndex) => MoveTabToGroup(source, group.Id, insertIndex));
+            (source, insertIndex) => MoveTabToGroup(source, group.Id, insertIndex),
+            (source, below) => MoveGroup(source, group.Id, below));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。

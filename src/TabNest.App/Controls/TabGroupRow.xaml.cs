@@ -26,6 +26,15 @@ public sealed partial class TabGroupRow : UserControl
     /// <summary>D&D 開始元のグループ(同一グループ内の並べ替えかグループ間移動かの判定に使う。Task 7-2)。</summary>
     private static TabGroupViewModel? s_draggingSourceGroup;
 
+    /// <summary>
+    /// D&D 中のグループ段(Task 7-3)。グループ段の並べ替えはドロップ先の行と開始元の行が
+    /// 別インスタンスになるため、全行で共有できるよう静的に保持する(s_draggingTab とは排他)。
+    /// </summary>
+    private static TabGroupViewModel? s_draggingGroup;
+
+    /// <summary>グループ段 D&D で現在インジケータを表示している段(別の段へ移ると付け替えるため保持。Task 7-3)。</summary>
+    private static TabGroupViewModel? s_groupDropTarget;
+
     public TabGroupViewModel? ViewModel { get; private set; }
 
     public TabGroupRow()
@@ -182,6 +191,7 @@ public sealed partial class TabGroupRow : UserControl
         {
             s_draggingTab = tab;
             s_draggingSourceGroup = ViewModel;
+            s_draggingGroup = null; // タブの D&D とグループ段の D&D は排他
             args.Data.SetText(tab.Id);
             args.Data.RequestedOperation = DataPackageOperation.Move;
         }
@@ -339,5 +349,109 @@ public sealed partial class TabGroupRow : UserControl
         s_draggingSourceGroup?.ClearDropIndicators();
         s_draggingTab = null;
         s_draggingSourceGroup = null;
+    }
+
+    /// <summary>
+    /// グループ段のドラッグ開始(Task 7-3)。グループ名部分をドラッグハンドルとし、
+    /// ドラッグ中のグループ段を保持して段の並べ替え操作として開始する(タブの D&D とは排他)。
+    /// </summary>
+    private void GroupName_DragStarting(UIElement sender, DragStartingEventArgs args)
+    {
+        if (ViewModel is null)
+        {
+            return;
+        }
+
+        s_draggingGroup = ViewModel;
+        s_draggingTab = null;
+        s_draggingSourceGroup = null;
+        args.Data.SetText(ViewModel.Id);
+        args.Data.RequestedOperation = DataPackageOperation.Move;
+    }
+
+    /// <summary>
+    /// グループ段上のドラッグ中(Task 7-3)。ポインタが段の上半分か下半分かに応じて、
+    /// この段の上端/下端に挿入位置インジケータを表示する。自分自身の上では何も出さない。
+    /// </summary>
+    private void Row_DragOver(object sender, DragEventArgs e)
+    {
+        if (s_draggingGroup is null || ViewModel is null || sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        e.DragUIOverride.IsGlyphVisible = false;
+        e.DragUIOverride.IsCaptionVisible = false;
+        e.AcceptedOperation = DataPackageOperation.Move;
+
+        // 自分自身の上ではインジケータを出さない(移動が起きないため)
+        if (ReferenceEquals(ViewModel, s_draggingGroup))
+        {
+            ClearGroupDropIndicator();
+            return;
+        }
+
+        var below = e.GetPosition(element).Y > element.ActualHeight / 2;
+        SetGroupDropIndicator(ViewModel, below);
+    }
+
+    /// <summary>段からドラッグが外れたとき、その段のインジケータを消す(Task 7-3)。</summary>
+    private void Row_DragLeave(object sender, DragEventArgs e)
+    {
+        if (s_draggingGroup is not null && ReferenceEquals(ViewModel, s_groupDropTarget))
+        {
+            ClearGroupDropIndicator();
+        }
+    }
+
+    /// <summary>
+    /// グループ段へのドロップ(Task 7-3)。ドロップ先の段の上半分なら直前、下半分なら直後へ
+    /// ドラッグ中の段を移動する。自分自身の上では何もしない。
+    /// </summary>
+    private void Row_Drop(object sender, DragEventArgs e)
+    {
+        if (s_draggingGroup is null || ViewModel is null || sender is not FrameworkElement element)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (!ReferenceEquals(ViewModel, s_draggingGroup))
+        {
+            var below = e.GetPosition(element).Y > element.ActualHeight / 2;
+            ViewModel.MoveGroupHere(s_draggingGroup, below);
+        }
+
+        ClearGroupDropIndicator();
+    }
+
+    /// <summary>グループ段のドラッグ終了(成否を問わず)。インジケータと状態を片付ける(Task 7-3)。</summary>
+    private void GroupName_DropCompleted(UIElement sender, DropCompletedEventArgs args)
+    {
+        ClearGroupDropIndicator();
+        s_draggingGroup = null;
+    }
+
+    /// <summary>
+    /// グループ段の挿入位置インジケータを <paramref name="target"/> 段に設定する(Task 7-3)。
+    /// 別の段に表示中だった場合はそちらを消してから付け替える(同時に1か所だけ表示する)。
+    /// </summary>
+    private static void SetGroupDropIndicator(TabGroupViewModel target, bool below)
+    {
+        if (!ReferenceEquals(s_groupDropTarget, target))
+        {
+            s_groupDropTarget?.ClearGroupDropIndicator();
+        }
+
+        s_groupDropTarget = target;
+        target.SetGroupDropIndicator(below);
+    }
+
+    /// <summary>グループ段の挿入位置インジケータを消す(Task 7-3)。</summary>
+    private static void ClearGroupDropIndicator()
+    {
+        s_groupDropTarget?.ClearGroupDropIndicator();
+        s_groupDropTarget = null;
     }
 }
