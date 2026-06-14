@@ -313,6 +313,7 @@ public sealed class MainViewModel : ViewModelBase
             // 選択中グループを削除した場合は選択状態も解除する(Task 8-2)
             if (ReferenceEquals(SelectedGroup, groupVm))
             {
+                groupVm.IsSelected = false;
                 SelectedGroup = null;
             }
         }
