@@ -36,6 +36,15 @@ public sealed partial class MainPage : Page
         => value ? Visibility.Collapsed : Visibility.Visible;
 
     /// <summary>
+    /// x:Bind 用: 選択中のお気に入りを淡くハイライトする(Task 8-2 のグループ選択と同じ見た目)。
+    /// 未選択時は Transparent にして、項目全体を左/中クリックの当たり判定にする。
+    /// </summary>
+    public static Brush FavoriteBackground(bool isSelected)
+        => isSelected
+            ? (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"]
+            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+    /// <summary>
     /// 左カラム(お気に入り+フォルダツリー)の現在幅。セッション保存用
     /// (スプリッターでの変更後の実際の表示幅を返す)。
     /// </summary>
@@ -60,20 +69,32 @@ public sealed partial class MainPage : Page
     /// </summary>
     private void OnPagePointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (ViewModel?.SelectedGroup is null || IsWithinTabGroups(e.OriginalSource as DependencyObject))
+        if (ViewModel is null)
         {
             return;
         }
 
-        ViewModel.ClearGroupSelection();
+        var source = e.OriginalSource as DependencyObject;
+
+        // タブグループ領域外のクリックでグループ選択を解除する(Task 8-2)
+        if (ViewModel.SelectedGroup is not null && !IsWithin(source, TabGroupsList))
+        {
+            ViewModel.ClearGroupSelection();
+        }
+
+        // お気に入り一覧外のクリックでお気に入り選択を解除する(Task 8-3)
+        if (ViewModel.SelectedFavorite is not null && !IsWithin(source, FavoritesListView))
+        {
+            ViewModel.ClearFavoriteSelection();
+        }
     }
 
-    /// <summary>指定要素がタブグループ一覧(TabGroupsList)の配下にあるかを視覚ツリーで判定する。</summary>
-    private bool IsWithinTabGroups(DependencyObject? source)
+    /// <summary>指定要素が <paramref name="ancestor"/> の配下にあるかを視覚ツリーで判定する。</summary>
+    private static bool IsWithin(DependencyObject? source, DependencyObject ancestor)
     {
         for (var node = source; node is not null; node = VisualTreeHelper.GetParent(node))
         {
-            if (ReferenceEquals(node, TabGroupsList))
+            if (ReferenceEquals(node, ancestor))
             {
                 return true;
             }
@@ -150,12 +171,29 @@ public sealed partial class MainPage : Page
         return null;
     }
 
-    /// <summary>お気に入りクリック: そのタブグループを新しい段として開く(5段上限は InfoBar 表示)。</summary>
+    /// <summary>
+    /// お気に入りの左クリック: 選択状態にするだけで開かない(Task 8-3)。
+    /// 開く操作はホイールクリック(<see cref="FavoriteItem_PointerPressed"/>)に分離した。
+    /// </summary>
     private void FavoritesListView_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is FavoriteItemViewModel favorite)
         {
+            ViewModel?.SelectFavorite(favorite.Id);
+        }
+    }
+
+    /// <summary>
+    /// お気に入りのホイールクリック(中クリック)で、そのタブグループを新しい段として開く(Task 8-3)。
+    /// 中クリックは Tapped/ItemClick では取りこぼすため PointerPressed + IsMiddleButtonPressed で検出する。
+    /// </summary>
+    private void FavoriteItem_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FavoriteItemViewModel favorite } element
+            && e.GetCurrentPoint(element).Properties.IsMiddleButtonPressed)
+        {
             ViewModel?.OpenFavorite(favorite.Id);
+            e.Handled = true;
         }
     }
 

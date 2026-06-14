@@ -12,6 +12,7 @@ public sealed class FavoriteItemViewModel : ViewModelBase
     private readonly SavedTabGroup _model;
     private readonly Func<string, bool>? _rename;
     private bool _isEditingName;
+    private bool _isSelected;
     private string _editingName = "";
 
     public FavoriteItemViewModel(SavedTabGroup model, Func<string, bool>? rename = null)
@@ -29,6 +30,16 @@ public sealed class FavoriteItemViewModel : ViewModelBase
     public IReadOnlyList<string> Paths => _model.Paths;
 
     public DateTime SavedAt => _model.SavedAt;
+
+    /// <summary>
+    /// このお気に入りが選択状態か(Task 8-3)。左クリックで true になり、
+    /// 他のお気に入りの選択や削除で false に戻る。値の更新は親 ViewModel が一元管理する。
+    /// </summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
 
     /// <summary>名前のインライン編集中かどうか。</summary>
     public bool IsEditingName

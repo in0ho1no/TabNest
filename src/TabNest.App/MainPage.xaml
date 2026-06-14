@@ -166,7 +166,7 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:FavoriteItemViewModel">
-                                    <Grid Background="Transparent">
+                                    <Grid Background="{x:Bind local:MainPage.FavoriteBackground(IsSelected), Mode=OneWay}" PointerPressed="FavoriteItem_PointerPressed">
                                         <Grid.ContextFlyout>
                                             <MenuFlyout>
                                                 <MenuFlyoutItem
