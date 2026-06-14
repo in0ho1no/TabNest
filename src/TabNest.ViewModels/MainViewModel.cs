@@ -16,6 +16,7 @@ public sealed class MainViewModel : ViewModelBase
     private string? _operationError;
     private bool _isFolderTreeVisible = true;
     private TabGroupViewModel? _selectedGroup;
+    private FavoriteItemViewModel? _selectedFavorite;
 
     /// <param name="session">
     /// 復元するセッション(起動時に settings.json から読み込んだ AppSettings)。
@@ -167,6 +168,53 @@ public sealed class MainViewModel : ViewModelBase
         }
 
         SelectedGroup = null;
+    }
+
+    /// <summary>
+    /// 選択状態のお気に入り(Task 8-3)。左クリックで設定し、お気に入り以外のクリックで解除する。
+    /// F2 リネーム(Task 8-6)などの対象特定に使う。未選択時は null。
+    /// </summary>
+    public FavoriteItemViewModel? SelectedFavorite
+    {
+        get => _selectedFavorite;
+        private set => SetProperty(ref _selectedFavorite, value);
+    }
+
+    /// <summary>
+    /// 指定お気に入りを選択状態にする(左クリック。Task 8-3)。タブグループは開かない。
+    /// 他のお気に入りの選択は解除し、選択は常に1件だけになる。
+    /// 表示中の Favorites に含まれない場合は無視する(状態を変更しない)。
+    /// </summary>
+    public void SelectFavorite(string favoriteId)
+    {
+        var target = Favorites.FirstOrDefault(f => f.Id == favoriteId);
+        if (target is null)
+        {
+            return;
+        }
+
+        foreach (var f in Favorites)
+        {
+            f.IsSelected = ReferenceEquals(f, target);
+        }
+
+        SelectedFavorite = target;
+    }
+
+    /// <summary>お気に入りの選択状態を解除する(お気に入り以外の領域のクリック。Task 8-3)。</summary>
+    public void ClearFavoriteSelection()
+    {
+        if (SelectedFavorite is null)
+        {
+            return;
+        }
+
+        foreach (var f in Favorites)
+        {
+            f.IsSelected = false;
+        }
+
+        SelectedFavorite = null;
     }
 
     /// <summary>
@@ -638,6 +686,12 @@ public sealed class MainViewModel : ViewModelBase
 
         if (Favorites.FirstOrDefault(f => f.Id == favoriteId) is { } itemVm)
         {
+            if (ReferenceEquals(SelectedFavorite, itemVm))
+            {
+                itemVm.IsSelected = false;
+                SelectedFavorite = null;
+            }
+
             Favorites.Remove(itemVm);
         }
 
