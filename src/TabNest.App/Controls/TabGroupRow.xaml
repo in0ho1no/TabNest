@@ -41,14 +41,20 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!--  グループ名(ダブルクリックでインライン編集、右クリックでお気に入りに保存)。段の D&D ドラッグハンドルを兼ねる(Task 7-3)  -->
+            <!--  グループ名(左クリックで選択、ダブルクリックでインライン編集、右クリックでお気に入りに保存)。段の D&D ドラッグハンドルを兼ねる(Task 7-3)  -->
             <Grid
                 Grid.Column="0"
                 MinWidth="80"
                 VerticalAlignment="Center"
+                Background="{x:Bind local:TabGroupRow.GroupNameBackground(ViewModel.IsSelected), Mode=OneWay}"
                 CanDrag="{x:Bind local:TabGroupRow.CanDragGroupName(ViewModel.IsEditingName), Mode=OneWay}"
+                CornerRadius="4"
                 DragStarting="GroupName_DragStarting"
                 DropCompleted="GroupName_DropCompleted">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
                 <Grid.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem
@@ -65,18 +71,29 @@
                         Text="グループを削除" />
                 </MenuFlyout>
             </Grid.ContextFlyout>
+            <!--  選択状態の視覚表示: 名前左の縦線アクセント(Task 8-2)  -->
+            <Border
+                Grid.Column="0"
+                Width="3"
+                Margin="0,2,4,2"
+                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                CornerRadius="2"
+                Visibility="{x:Bind local:TabGroupRow.VisibleWhen(ViewModel.IsSelected), Mode=OneWay}" />
             <TextBlock
                 x:Name="GroupNameText"
+                Grid.Column="1"
                 Padding="8,4"
                 VerticalAlignment="Center"
                 AutomationProperties.AutomationId="GroupNameText"
                 DoubleTapped="GroupNameText_DoubleTapped"
                 Style="{ThemeResource BodyStrongTextBlockStyle}"
+                Tapped="GroupNameText_Tapped"
                 Text="{x:Bind ViewModel.Name, Mode=OneWay}"
                 TextTrimming="CharacterEllipsis"
                 Visibility="{x:Bind local:TabGroupRow.VisibleWhenNot(ViewModel.IsEditingName), Mode=OneWay}" />
             <TextBox
                 x:Name="GroupNameEditBox"
+                Grid.Column="1"
                 MinWidth="80"
                 VerticalAlignment="Center"
                 AutomationProperties.AutomationId="GroupNameEditBox"

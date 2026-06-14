@@ -18,11 +18,13 @@ public sealed class TabGroupViewModel : ViewModelBase
     private readonly Action<IReadOnlyList<string>>? _reorderTabs;
     private readonly Func<FolderTabViewModel, int, bool>? _moveTabIntoGroup;
     private readonly Func<TabGroupViewModel, bool, bool>? _moveGroupHere;
+    private readonly Action<TabGroupViewModel>? _selectGroup;
     private string _name;
     private string _editingName = "";
     private bool _isEditingName;
     private bool _isDropAbove;
     private bool _isDropBelow;
+    private bool _isSelected;
 
     public TabGroupViewModel(
         TabGroup model,
@@ -33,7 +35,8 @@ public sealed class TabGroupViewModel : ViewModelBase
         Action<FolderTabViewModel>? duplicateTab = null,
         Action<IReadOnlyList<string>>? reorderTabs = null,
         Func<FolderTabViewModel, int, bool>? moveTabIntoGroup = null,
-        Func<TabGroupViewModel, bool, bool>? moveGroupHere = null)
+        Func<TabGroupViewModel, bool, bool>? moveGroupHere = null,
+        Action<TabGroupViewModel>? selectGroup = null)
     {
         _model = model;
         _selectTab = selectTab;
@@ -44,6 +47,7 @@ public sealed class TabGroupViewModel : ViewModelBase
         _reorderTabs = reorderTabs;
         _moveTabIntoGroup = moveTabIntoGroup;
         _moveGroupHere = moveGroupHere;
+        _selectGroup = selectGroup;
         _name = model.Name;
         Tabs = new ObservableCollection<FolderTabViewModel>(
             model.Tabs.Select(t => new FolderTabViewModel(t)));
@@ -69,6 +73,23 @@ public sealed class TabGroupViewModel : ViewModelBase
 
     /// <summary>このグループがタブを1個以上持つか(削除時の確認ダイアログ要否の判定に使う)。</summary>
     public bool HasTabs => Tabs.Count > 0;
+
+    /// <summary>
+    /// このグループを選択状態にする(グループ名の左クリック。Task 8-2)。
+    /// 実際の選択状態管理(他グループの選択解除・SelectedGroup 更新)は親 ViewModel に委譲する。
+    /// </summary>
+    public void Select() => _selectGroup?.Invoke(this);
+
+    /// <summary>
+    /// このグループが選択状態か(アクティブグループとは別概念。Task 8-2)。
+    /// グループ名の左クリックで true になり、グループ以外のクリックや他グループ選択で false に戻る。
+    /// 選択状態は F2 リネーム(Task 8-6)の対象特定に使う。値の更新は親 ViewModel が一元管理する。
+    /// </summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set => SetProperty(ref _isSelected, value);
+    }
 
     /// <summary>
     /// グループ内 D&amp;D でタブを並べ替える(Task 7-1)。<paramref name="insertIndex"/> は

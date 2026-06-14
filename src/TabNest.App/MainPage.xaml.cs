@@ -19,6 +19,9 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+        // グループ以外の領域をクリックしたらタブグループの選択を解除する(Task 8-2)。
+        // 子要素が PointerPressed を処理済みでも捕捉できるよう handledEventsToo: true で登録する。
+        AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnPagePointerPressed), handledEventsToo: true);
     }
 
     /// <summary>x:Bind 用: 文字列が空でなければ true。</summary>
@@ -49,6 +52,34 @@ public sealed partial class MainPage : Page
             LeftPaneColumn.Width = new Microsoft.UI.Xaml.GridLength(viewModel.LeftPaneWidth);
             Bindings.Update();
         }
+    }
+
+    /// <summary>
+    /// タブグループ領域の外をクリックしたらグループ選択を解除する(Task 8-2)。
+    /// タブグループ領域(グループ名・タブ)内のクリックは選択操作のため解除しない。
+    /// </summary>
+    private void OnPagePointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (ViewModel?.SelectedGroup is null || IsWithinTabGroups(e.OriginalSource as DependencyObject))
+        {
+            return;
+        }
+
+        ViewModel.ClearGroupSelection();
+    }
+
+    /// <summary>指定要素がタブグループ一覧(TabGroupsList)の配下にあるかを視覚ツリーで判定する。</summary>
+    private bool IsWithinTabGroups(DependencyObject? source)
+    {
+        for (var node = source; node is not null; node = VisualTreeHelper.GetParent(node))
+        {
+            if (ReferenceEquals(node, TabGroupsList))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void PathTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
