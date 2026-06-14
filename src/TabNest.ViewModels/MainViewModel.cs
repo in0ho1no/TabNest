@@ -15,6 +15,7 @@ public sealed class MainViewModel : ViewModelBase
     private string _title = "TabNest";
     private string? _operationError;
     private bool _isFolderTreeVisible = true;
+    private TabGroupViewModel? _selectedGroup;
 
     /// <param name="session">
     /// 復元するセッション(起動時に settings.json から読み込んだ AppSettings)。
@@ -120,6 +121,53 @@ public sealed class MainViewModel : ViewModelBase
 
     /// <summary>タブグループ(表示順)。</summary>
     public ObservableCollection<TabGroupViewModel> Groups { get; } = [];
+
+    /// <summary>
+    /// 選択状態のタブグループ(アクティブグループとは別概念。Task 8-2)。
+    /// グループ名の左クリックで設定し、グループ以外のクリックで解除する。
+    /// F2 リネーム(Task 8-6)などの対象特定に使う。未選択時は null。
+    /// </summary>
+    public TabGroupViewModel? SelectedGroup
+    {
+        get => _selectedGroup;
+        private set => SetProperty(ref _selectedGroup, value);
+    }
+
+    /// <summary>
+    /// 指定グループを選択状態にする(グループ名の左クリック。Task 8-2)。
+    /// 他グループの選択は解除し、選択は常に1グループだけになる。
+    /// 表示中の Groups に含まれないグループは無視する(状態を変更しない)。
+    /// </summary>
+    public void SelectGroup(TabGroupViewModel group)
+    {
+        if (!Groups.Contains(group))
+        {
+            return;
+        }
+
+        foreach (var g in Groups)
+        {
+            g.IsSelected = ReferenceEquals(g, group);
+        }
+
+        SelectedGroup = group;
+    }
+
+    /// <summary>グループの選択状態を解除する(グループ以外の領域のクリック。Task 8-2)。</summary>
+    public void ClearGroupSelection()
+    {
+        if (SelectedGroup is null)
+        {
+            return;
+        }
+
+        foreach (var g in Groups)
+        {
+            g.IsSelected = false;
+        }
+
+        SelectedGroup = null;
+    }
 
     /// <summary>
     /// 起動時の初期表示としてアクティブタブを選択し、そのフォルダを読み込む
@@ -262,6 +310,11 @@ public sealed class MainViewModel : ViewModelBase
         if (Groups.FirstOrDefault(g => g.Id == groupId) is { } groupVm)
         {
             Groups.Remove(groupVm);
+            // 選択中グループを削除した場合は選択状態も解除する(Task 8-2)
+            if (ReferenceEquals(SelectedGroup, groupVm))
+            {
+                SelectedGroup = null;
+            }
         }
 
         ApplyActiveStates();
@@ -736,7 +789,8 @@ public sealed class MainViewModel : ViewModelBase
             tab => DuplicateTab(tab),
             orderedIds => ReorderTabsInGroup(group.Id, orderedIds),
             (source, insertIndex) => MoveTabToGroup(source, group.Id, insertIndex),
-            (source, below) => MoveGroup(source, group.Id, below));
+            (source, below) => MoveGroup(source, group.Id, below),
+            groupVm => SelectGroup(groupVm));
 
     /// <summary>
     /// TabManagerService のアクティブ状態を各タブ ViewModel の IsActive に反映する(一元管理)。

@@ -76,6 +76,15 @@ public sealed partial class TabGroupRow : UserControl
         => (Brush)Application.Current.Resources[
             isActive ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush"];
 
+    /// <summary>
+    /// x:Bind 用: 選択中グループは名前部分を淡くハイライトする(Task 8-2)。
+    /// 未選択時は Transparent にして、グループ名領域全体を左クリック/ドラッグの当たり判定にする。
+    /// </summary>
+    public static Brush GroupNameBackground(bool isSelected)
+        => isSelected
+            ? (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"]
+            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
     private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
     {
         if (args.NewValue is TabGroupViewModel viewModel && !ReferenceEquals(ViewModel, viewModel))
@@ -83,6 +92,13 @@ public sealed partial class TabGroupRow : UserControl
             ViewModel = viewModel;
             Bindings.Update();
         }
+    }
+
+    /// <summary>グループ名の左クリックでこのグループを選択状態にする(Task 8-2)。</summary>
+    private void GroupNameText_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        ViewModel?.Select();
+        e.Handled = true;
     }
 
     private void GroupNameText_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

@@ -21,6 +21,7 @@
 
         <!--  タブグループ行(グループごとに1段)  -->
         <ItemsControl
+            x:Name="TabGroupsList"
             Grid.Row="0"
             Margin="0,0,0,8"
             AutomationProperties.AutomationId="TabGroupsList"

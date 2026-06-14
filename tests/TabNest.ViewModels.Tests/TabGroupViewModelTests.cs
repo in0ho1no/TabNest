@@ -212,6 +212,31 @@ public class TabGroupViewModelTests
     }
 
     [Fact]
+    public void Select_選択コールバックに自身を渡す()
+    {
+        TabGroupViewModel? selected = null;
+        var model = new TabGroup { Id = "g1", Name = "作業1", Tabs = [] };
+        var vm = new TabGroupViewModel(model, selectGroup: g => selected = g);
+
+        vm.Select();
+
+        Assert.Same(vm, selected);
+    }
+
+    [Fact]
+    public void IsSelected_変更時にPropertyChangedが発火する()
+    {
+        var (vm, _) = Create();
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.IsSelected = true;
+
+        Assert.True(vm.IsSelected);
+        Assert.Contains(nameof(TabGroupViewModel.IsSelected), raised);
+    }
+
+    [Fact]
     public void ClearDropIndicators_すべてのインジケータが消える()
     {
         var (vm, _) = CreateForReorder();
