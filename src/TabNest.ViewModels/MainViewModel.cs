@@ -412,6 +412,23 @@ public sealed class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// 一覧のフォルダをアクティブグループの末尾に新規タブとして開き、そのフォルダを表示する
+    /// (ファイル一覧のホイールクリック。Task 8-4)。追加されたタブはアクティブになる。
+    /// 対象がファイルの場合は何もしない(新規タブ対象はフォルダのみ)。
+    /// グループのタブ上限(20)到達時は追加せず OperationError を設定して false を返す。
+    /// </summary>
+    public bool OpenFolderInNewTab(FileItemViewModel item)
+    {
+        if (!item.IsDirectory)
+        {
+            return false;
+        }
+
+        var groupId = _tabManager.ActiveGroupId;
+        return groupId is not null && AddTab(groupId, item.FullPath) is not null;
+    }
+
+    /// <summary>
     /// 「作業N」という名前の新規グループを1段追加し、%UserProfile% を開く初期タブを作成する
     /// (ボタン / Ctrl+G)。グループ名編集中は何も実行しない。5段到達時はエラーを表示して追加しない。
     /// </summary>

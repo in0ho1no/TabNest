@@ -120,6 +120,22 @@ public sealed partial class MainPage : Page
         }
     }
 
+    /// <summary>
+    /// ファイル一覧のホイールクリック(中クリック)で、フォルダを新規タブで開く(Task 8-4)。
+    /// 中クリックは Tapped/DoubleTapped では取りこぼすため PointerPressed + IsMiddleButtonPressed で検出する。
+    /// フォルダのみが対象で、ファイルでは何もしない(VM 側でも IsDirectory を再判定する)。
+    /// </summary>
+    private void FileItem_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: FileItemViewModel item } element
+            && item.IsDirectory
+            && e.GetCurrentPoint(element).Properties.IsMiddleButtonPressed)
+        {
+            ViewModel?.OpenFolderInNewTab(item);
+            e.Handled = true;
+        }
+    }
+
     private void FolderTreeView_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
     {
         if (args.InvokedItem is FolderTreeNodeViewModel node)

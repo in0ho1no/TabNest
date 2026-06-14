@@ -350,7 +350,8 @@
                     SelectionMode="Single">
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:FileItemViewModel">
-                    <Grid>
+                    <!--  Background="Transparent" で行全体を中クリックの当たり判定にする(Task 8-4)  -->
+                    <Grid Background="Transparent" PointerPressed="FileItem_PointerPressed">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="28" />
                             <ColumnDefinition Width="292" />
