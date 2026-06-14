@@ -461,7 +461,6 @@ settings.local.json
 
 # App runtime settings
 TabNest/settings.json
-**/settings.json
 !docs/examples/settings.json
 !samples/settings.json
 

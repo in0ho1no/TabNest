@@ -74,6 +74,34 @@ dotnet run --project src/TabNest.App/TabNest.App.csproj -p:Platform=x64
 dotnet test tests/TabNest.UiTests/TabNest.UiTests.csproj
 ```
 
+## 開発支援スキル(Claude Code)
+
+このリポジトリは、Claude Code で WinUI 3 開発用スキル(Microsoft 公式
+[win-dev-skills](https://github.com/microsoft/win-dev-skills)・MIT)をこのプロジェクト配下に限定して有効化する設定を同梱しています。
+グローバル環境(`~/.claude/`)は汚さず、依存はリポジトリで追跡されます。
+
+設定の実体は [`.claude/settings.json`](.claude/settings.json) です。
+
+新しく環境を作る場合の手順:
+
+1. リポジトリを clone する。
+2. このフォルダで Claude Code を起動する。
+   起動時にマーケットプレイスを GitHub から取得する
+   (信頼確認プロンプトが出た場合は承認する。環境によっては表示されないこともあります)。
+3. 取得後、`winui` プラグイン同梱のスキル(`winui-dev-workflow` /
+   `winui-design` / `winui-code-review` / `winui-ui-testing` /
+   `winui-packaging` / `winui-wpf-migration` / `winui-setup` /
+   `winui-session-report`)と orchestrator agent が利用可能になる。
+
+取得先(キャッシュ)は グローバル側 の
+`~/.claude/plugins/marketplaces/win-dev-skills/` です
+(プロジェクト配下には展開されません)。スキルが一覧に出ない場合は、
+信頼プロンプトの承認漏れか取得失敗を疑い、Claude Code を再起動して確認してください。
+
+> 注: 別途 `claude plugin marketplace add microsoft/win-dev-skills` を手動実行する必要はありません。
+> そのコマンドはマーケットプレイスをグローバルに登録し全プロジェクトへ影響するため、
+> 本リポジトリでは上記の宣言的設定(プロジェクト限定)を採用しています。
+
 ## 既知の制限(v0.1)
 
 - ファイル操作(コピー・移動・削除・リネーム・新規作成)は未実装(v0.2 以降)
