@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "win-dev-skills": {
+      "source": {
+        "source": "github",
+        "repo": "microsoft/win-dev-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "winui@win-dev-skills": true
+  }
+}
